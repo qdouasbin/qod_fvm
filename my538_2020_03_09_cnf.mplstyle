@@ -1,0 +1,78 @@
+#Author: Quentin Douasbin, CTR, Stanford University, California, USA
+
+font.family: Arial
+
+lines.linewidth: 1
+lines.markersize: 7
+lines.markeredgewidth: 1
+lines.solid_capstyle: round
+
+axes.linewidth : 0.3
+axes.axisbelow : True # Draw axes and grid below the graphs elements
+
+legend.fancybox: False
+legend.shadow: False
+legend.edgecolor: black
+legend.frameon : False
+legend.framealpha    : 0.8
+legend.labelspacing  : 0.1
+legend.handletextpad : 0.25
+legend.columnspacing : 0.05
+
+figure.figsize: 4, 3
+figure.dpi : 200
+figure.autolayout : True
+
+image.cmap: viridis
+
+savefig.dpi: 600
+savefig.format: pdf
+
+markers.fillstyle: none
+
+xtick.direction: in
+ytick.direction: in
+
+#xtick.top : True
+#ytick.right : True
+
+#xtick.major.size: 2
+#xtick.minor.size: 1.
+#xtick.major.width:  0.2
+#xtick.minor.width:  0.15
+#xtick.major.pad : 1.
+
+#ytick.major.size: 2
+#ytick.minor.size: 1.
+#ytick.major.width:  0.3
+#ytick.minor.width:  0.15
+#ytick.major.pad : 1.
+
+xtick.minor.visible: True
+ytick.minor.visible: True
+
+axes.labelpad : 1.
+#axes.labelweight: bold
+
+# Use scientific notation
+axes.formatter.limits: -3, 4        ## use scientific notation if log10
+                                      ## of the axis range is smaller than the
+                                     # ## first or larger than the second
+# axes.formatter.use_locale: False    ## When True, format tick labels
+                                      ## according to the user's locale.
+                                      ## For example, use ',' as a decimal
+                                      ## separator in the fr_FR locale.
+axes.formatter.use_mathtext: True   ## When True, use mathtext for scientific
+                                      ## notation.
+#axes.formatter.min_exponent: 0      ## minimum exponent to format in scientific notation
+# axes.formatter.useoffset: True      ## If True, the tick label formatter
+  axes.formatter.useoffset: False      ## If True, the tick label formatter
+                                      ## will default to labeling ticks relative
+                                      ## to an offset when the data range is
+                                      ## small compared to the minimum absolute
+                                      ## value of the data.
+# axes.formatter.offset_threshold: 6  ## When useoffset is True, the offset
+                                      ## will be used when it can remove
+                                      ## at least this number of significant
+                                      ## digits from tick labels.
+                                      #
