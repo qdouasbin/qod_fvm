@@ -7,6 +7,8 @@ import utils
 
 utils.plt_style()
 
+N_TRANSPORT_EQ = 3
+
 
 class Cell():
 
@@ -33,6 +35,7 @@ class Cell():
         # variables
         self.pres = 0.
         self.temp = 0.
+        self.e_int = 0.
         self.e_tot = 0.
         self.u = 0.
 
@@ -43,18 +46,31 @@ class Cell():
         # cons
         self.rho = 0.
         self.rho_u = 0.
-        self.rho_e = 0.
+        self.rho_E = 0.
 
         # index of vector
-        self._idx_mass = 0
-        self._idx_momentum = 1
-        self._idx_energy = 2
+        self.idx_mass = 0
+        self.idx_momentum = 1
+        self.idx_energy = 2
 
         # cons_vec
-        self.w_cons = np.zeros_like(3)
+        self.w_cons = np.zeros(N_TRANSPORT_EQ)
 
-        # Flux vect (cell-center)
-        self.f_cons = np.zeros_like(3)
+        # source term
+        self.s_cons = np.zeros(N_TRANSPORT_EQ)
+
+        # Flux vector
+        # cell-center
+        self.f_cons = np.zeros(N_TRANSPORT_EQ)
+        # left
+        self.flux_face_l = np.zeros(N_TRANSPORT_EQ)
+        # right
+        self.flux_face_r = np.zeros(N_TRANSPORT_EQ)
+
+        self.n_transport_eq = N_TRANSPORT_EQ
+
+    def compute_volume(self):
+        self.vol = self.area * self.dx
 
     def set_positions(self, x_minus_half, x_center, x_plus_half):
         self.x_i = x_center
@@ -74,6 +90,9 @@ class Cell():
     def set_rho_from_TP(self):
         self.rho = self.pres / (self.r_gas * self.temp)
 
+    def set_T_from_RP(self):
+        self.temp = self.pres / (self.r_gas * self.rho)
+
     def get_cp(self):
         return self.gamma * self.get_cv()
 
@@ -86,14 +105,27 @@ class Cell():
 
     def get_internal_energy(self):
         _h = self.get_enthalpy()
-        _e = _h - self.pres / self.rho
-        self.e_tot = _e
-        return _e
+        self.e_int = _h - self.pres / self.rho
+        self.e_tot = self.e_int + 0.5 * self.u ** 2
+        return self.e_tot
+
+    def get_total_energy(self):
+        self.e_tot = self.get_internal_energy() + 0.5 * self.u ** 2
+        return self.e_tot
+
+    def get_sos(self):
+        return np.sqrt(self.gamma * self.r_gas * self.temp)
 
     def update_cons_vec(self):
-        self.w_cons[self._idx_mass] = self.rho
-        self.w_cons[self._idx_momentum] = self.rho_u
-        self.w_cons[self._idx_energy] = self.rho_e
+        self.w_cons[self.idx_mass] = self.rho
+        self.w_cons[self.idx_momentum] = self.rho_u
+        self.w_cons[self.idx_energy] = self.rho_E
+
+    def update_flux_vec(self):
+        self.f_cons[self.idx_mass] = self.rho * self.u
+        self.f_cons[self.idx_momentum] = self.rho * self.u ** 2.
+        self.f_cons[self.idx_energy] = self.rho * self.u * (self.e_tot + self.pres)
+
 
     def prim_to_cons(self):
         # Mass
@@ -103,7 +135,27 @@ class Cell():
         self.rho_u = self.rho * self.u
 
         # Energy
-        _e = self.get_internal_energy()
-        self.rho_e = self.rho * _e
+        self.rho_E = self.rho * self.get_total_energy()
 
+    def cons_to_prim(self):
+        # mass, ok
+
+        # momentum
+        self.u = self.rho_u / self.rho
+
+        # energy
+        self.e_tot = self.rho_E / self.rho - 0.5 * self.u ** 2
+
+    def update_vec_from_var(self):
+        self.prim_to_cons()
         self.update_cons_vec()
+        self.update_flux_vec()
+
+    def update_var_from_vec(self):
+        self.cons_to_prim()
+
+        self.pres = (self.gamma - 1.) * self.rho * \
+                    (self.e_tot - 0.5 * self.u ** 2)
+
+        # set T
+        self.set_T_from_RP()

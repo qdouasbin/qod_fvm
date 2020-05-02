@@ -3,17 +3,18 @@ Solving a toy problem with a 1D finite volume solver:
 
 Assumptions:
 
-    - uniform grid spacing (simplified WENO scheme)
-    -
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+from celluloid import Camera
 
 import input_1d_solver as inp
 
 from cell import Cell
 from field import Field
+import FluxReconstruction as FR
 import utils
 
 utils.plt_style()
@@ -83,17 +84,22 @@ def initialize_field(dom_1D, case=1):
 
         return diam, 0.25 * np.pi * diam ** 2.
 
+    def area_constant(cell, diam):
+        return diam, 0.25 * np.pi * diam ** 2.
+
     for _idx, _cell in enumerate(dom_1D.lst_cell):
 
         _cell.gamma = inp.GAMMA
         _cell.r_gas = inp.R_GAS
 
         if case == 1:
-            _cell.set_T(300)
-            _cell.set_P(1e5)
-            _cell.set_u(0)
+            _cell.set_T(inp.init_T)
+            _cell.set_P(inp.init_P)
+            _cell.set_u(inp.init_u)
             _cell.set_rho_from_TP()
-            _cell.diam, _cell.area = area_x(_cell)
+            # _cell.diam, _cell.area = area_x(_cell)
+            _cell.diam, _cell.area = area_constant(_cell, 1e-2)
+            _cell.compute_volume()
 
     return dom_1D
 
@@ -130,6 +136,7 @@ def plot_prim_var_field(dom_1D, fig_name):
 
 
 def apply_BC(field):
+    # todo: cons2prim for ghost cells
     field.lst_cell[0].set_u(inp.bc_left_u)
     field.lst_cell[0].set_P(inp.bc_left_P)
     field.lst_cell[0].set_T(inp.bc_left_T)
@@ -140,17 +147,65 @@ def apply_BC(field):
     return field
 
 
-def compute_time_step_size():
-    sos = field
-    pass
-
-
 def time_marching(field, dt):
+    """
+    For now 1st order forward euler in time
+    """
+
+    # reapply BC
+    apply_BC(field)
+
+    field.update_vec_from_var()
+
+    # ----- Advection -----
+
+    # reconstruct inter_cell fluxes
+    stencil_it = enumerate(zip(field.lst_cell[0:-1],
+                               field.lst_cell[1:]))
+
+    for _idx, (cell_l, cell_r) in stencil_it:
+        inter_cell_flux = FR.get_intercell_flux(cell_l, cell_r, dt)
+        cell_l.flux_face_r = inter_cell_flux
+        cell_r.flux_face_l = inter_cell_flux
+
+    # update conservative
+    # todo, check these
+    stencil_it = enumerate(zip(field.lst_cell[0:-1],
+                               field.lst_cell[1:]))
+    for _idx, (cell_l, cell_r) in stencil_it:
+        # print("cell_l.flux_face_l \t:%e\t%e\t%e" % (cell_l.flux_face_l[0], cell_l.flux_face_l[1], cell_l.flux_face_l[2]))
+        # print("cell_l.flux_face_r \t:%e\t%e\t%e" % (cell_l.flux_face_r[0], cell_l.flux_face_r[1], cell_l.flux_face_r[2]))
+        #
+        # print("cell_l.area \t = %e" % cell_l.area)
+        # print("cell_r.area \t = %e" % cell_r.area)
+        # print("cell_r.area \t = %e" % cell_r.area)
+        #
+        # print("vol = %e" % cell_l.vol)
+
+        # flux_diff = cell_l.flux_face_r * cell_r.area
+
+        flux_diff = cell_r.flux_face_l * cell_r.area
+        flux_diff -= cell_l.flux_face_l * cell_l.area
+        source_terms = cell_l.s_cons
+        residual = flux_diff - source_terms
+        cell_l.w_cons -= (1 / cell_l.vol) * residual
+
+    # ----- Source term -----
+    field.add_source_term_p()
+
+    # update primitive
+    field.update_var_from_vec()
+
+    # debug
+    field.plot_cons()
+
     return field
 
 
 def advance_time_step(time, field):
     dt = field.compute_time_step(inp.CFL)
+
+    print(" > Time = %3.3e\t dt = %3.3e" % (time, dt))
 
     field = time_marching(field, dt)
 
@@ -181,8 +236,6 @@ if __name__ == "__main__":
     if CHECK_1D_BC:
         plot_prim_var_field(field, 'apply_BC')
 
-    field.prim_to_cons()
-
     time = inp.t_init
 
     for step in range(inp.n_steps):
@@ -190,11 +243,13 @@ if __name__ == "__main__":
         time, field = advance_time_step(time, field)
 
         if not step % inp.output_freq:
-            write_output(step)
+            field.write_output(step, time)
 
     print(field.lst_cell[0].rho)
     print(field.lst_cell[0].rho_u)
-    print(field.lst_cell[0].rho_e)
+    print(field.lst_cell[0].rho_E)
     print(field.lst_cell[0].w_cons)
+
+    print(field.lst_cell[0].f_cons)
 
     print("Done")

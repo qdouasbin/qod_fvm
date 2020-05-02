@@ -9,3 +9,7 @@ def plt_style():
 
 def savefig_check(name):
     plt.savefig("Figures/checks/%s.png" % name)
+
+
+def savefig_solution(name):
+    plt.savefig("Figures/solution/%s.png" % name, dpi=100)
