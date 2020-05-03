@@ -20,7 +20,7 @@ import utils
 utils.plt_style()
 
 CHECK_1D_DOMAIN = 0
-CHECK_1D_INIT = 0
+CHECK_1D_INIT = 1
 CHECK_1D_BC = 0
 
 
@@ -137,12 +137,17 @@ def plot_prim_var_field(dom_1D, fig_name):
 
 def apply_BC(field):
     # todo: cons2prim for ghost cells
-    field.lst_cell[0].set_u(inp.bc_left_u)
-    field.lst_cell[0].set_P(inp.bc_left_P)
-    field.lst_cell[0].set_T(inp.bc_left_T)
-    field.lst_cell[0].set_rho_from_TP()
+    left_ghost = field.lst_cell[0]
+    left_ghost.set_u(inp.bc_left_u)
+    left_ghost.set_P(inp.bc_left_P)
+    left_ghost.set_T(inp.bc_left_T)
+    left_ghost.set_rho_from_TP()
 
-    field.lst_cell[-1].set_P(inp.bc_right_P)
+    right_ghost = field.lst_cell[-1]
+    right_ghost.set_P(inp.bc_right_P)
+
+    for _ghost in [left_ghost, right_ghost]:
+        _ghost.update_vec_from_var()
 
     return field
 
@@ -152,27 +157,42 @@ def time_marching(field, dt):
     For now 1st order forward euler in time
     """
 
-    # reapply BC
+    # cons2prim
+    field.update_var_from_vec()
+
+    # apply BC
     apply_BC(field)
 
+    # prim2cons
     field.update_vec_from_var()
+
+    # Compute source terms
+
+    # ----- Source term -----
+    field.add_source_term_p()
 
     # ----- Advection -----
 
-    # reconstruct inter_cell fluxes
-    stencil_it = enumerate(zip(field.lst_cell[0:-1],
-                               field.lst_cell[1:]))
 
-    for _idx, (cell_l, cell_r) in stencil_it:
+    # first face to be reconstructed == left bc, last = right bc
+    # from (0, 1) cell to (Ng-1, Ng) where Ng = n_cell + n_ghost_cells (here 2)
+    stencil_cv_it = enumerate(zip(field.lst_cell[0:-1],
+                                  field.lst_cell[1:]))
+
+    # reconstruct inter_cell fluxes
+    for _idx, (cell_l, cell_r) in stencil_cv_it:
+        # print("x_face = %e = %e" % (cell_l.x_f_1, cell_r.x_f_0))
         inter_cell_flux = FR.get_intercell_flux(cell_l, cell_r, dt)
         cell_l.flux_face_r = inter_cell_flux
         cell_r.flux_face_l = inter_cell_flux
 
-    # update conservative
-    # todo, check these
-    stencil_it = enumerate(zip(field.lst_cell[0:-1],
-                               field.lst_cell[1:]))
-    for _idx, (cell_l, cell_r) in stencil_it:
+    # compute residual and update conservative
+
+    # here we go for cell inside the domain only (1, 2) --> (N-2, N-1)
+    stencil_cv_it = enumerate(zip(field.lst_cell[1:-1], field.lst_cell[2:]))
+    for _idx, (cell_l, cell_r) in stencil_cv_it:
+        # print("cell_l.xi = %e, cell_r.xi = %e" % (cell_l.x_i, cell_r.x_i))
+
         # print("cell_l.flux_face_l \t:%e\t%e\t%e" % (cell_l.flux_face_l[0], cell_l.flux_face_l[1], cell_l.flux_face_l[2]))
         # print("cell_l.flux_face_r \t:%e\t%e\t%e" % (cell_l.flux_face_r[0], cell_l.flux_face_r[1], cell_l.flux_face_r[2]))
         #
@@ -182,30 +202,24 @@ def time_marching(field, dt):
         #
         # print("vol = %e" % cell_l.vol)
 
-        # flux_diff = cell_l.flux_face_r * cell_r.area
+        flux_adv_diff = cell_r.flux_face_l * cell_r.area
 
-        flux_diff = cell_r.flux_face_l * cell_r.area
-        flux_diff -= cell_l.flux_face_l * cell_l.area
-        source_terms = cell_l.s_cons
-        residual = flux_diff - source_terms
-        cell_l.w_cons -= (1 / cell_l.vol) * residual
+        flux_adv_diff -= cell_l.flux_face_l * cell_l.area
+        source_terms = cell_l.s_cons * cell_l.area
+        residual = flux_adv_diff - source_terms
+        cell_l.w_cons -= (dt / cell_l.vol) * residual
 
-    # ----- Source term -----
-    field.add_source_term_p()
 
     # update primitive
     field.update_var_from_vec()
 
-    # debug
-    field.plot_cons()
-
     return field
 
 
-def advance_time_step(time, field):
+def advance_time_step(step, time, field):
     dt = field.compute_time_step(inp.CFL)
 
-    print(" > Time = %3.3e\t dt = %3.3e" % (time, dt))
+    print(" > Step %06d\ttime = %3.3e\tdt = %3.3e" % (step, time, dt))
 
     field = time_marching(field, dt)
 
@@ -213,9 +227,6 @@ def advance_time_step(time, field):
 
     return time, field
 
-
-def write_output(step):
-    pass
 
 
 if __name__ == "__main__":
@@ -230,20 +241,28 @@ if __name__ == "__main__":
     if CHECK_1D_INIT:
         plot_prim_var_field(field, 'init_fields')
 
-    # Apply BC --> no need to do that here
-    field = apply_BC(field)
+    # # Apply BC --> no need to do that here
+    # field = apply_BC(field)
+
+    field.update_vec_from_var()
+
+    # Check fields after BC
+    # field.write_output(0,0)
+    # field.plot_cons()
 
     if CHECK_1D_BC:
         plot_prim_var_field(field, 'apply_BC')
 
+    # field.plot_cons()
+
     time = inp.t_init
 
     for step in range(inp.n_steps):
-        print("\t Step %5d" % step)
-        time, field = advance_time_step(time, field)
+        time, field = advance_time_step(step, time, field)
 
         if not step % inp.output_freq:
             field.write_output(step, time)
+            field.plot_cons()
 
     print(field.lst_cell[0].rho)
     print(field.lst_cell[0].rho_u)

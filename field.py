@@ -123,7 +123,6 @@ class Field():
         for _idx_cell, _cell in enumerate(self.lst_cell):
             _cell.s_cons[_cell.idx_momentum] = - _cell.area * grad_p[_idx_cell]
 
-
     def compute_time_step(self, cfl):
         u_arr = self.get_u()
         sos = self.get_sos()
@@ -171,7 +170,7 @@ class Field():
 
     def update_var_from_vec(self):
         for _cell in self.lst_cell:
-            _cell.update_var_from_vec
+            _cell.update_var_from_vec()
 
     def prim_to_cons(self):
         # rho --> no need (both prim and cons)
@@ -190,7 +189,7 @@ class Field():
         # n_cons = self.lst_cell[0].w_cons.flatten().shape
         n_cons = self.lst_cell[0].n_transport_eq
         w_cons_mat = np.zeros((n_cells, n_cons))
-        print(w_cons_mat.shape)
+        # print(w_cons_mat.shape)
 
         for _idx, _cell in enumerate(self.lst_cell):
             w_cons_mat[_idx, :] = _cell.w_cons
@@ -203,7 +202,7 @@ class Field():
         # n_cons = self.lst_cell[0].w_cons.flatten().shape
         n_cons = self.lst_cell[0].n_transport_eq
         f_cons_mat = np.zeros((n_cells, n_cons))
-        print(f_cons_mat.shape)
+        # print(f_cons_mat.shape)
 
         for _idx, _cell in enumerate(self.lst_cell):
             f_cons_mat[_idx, :] = _cell.f_cons
@@ -216,7 +215,7 @@ class Field():
         # n_cons = self.lst_cell[0].w_cons.flatten().shape
         n_cons = self.lst_cell[0].n_transport_eq
         s_cons_mat = np.zeros((n_cells, n_cons))
-        print(s_cons_mat.shape)
+        # print(s_cons_mat.shape)
 
         for _idx, _cell in enumerate(self.lst_cell):
             s_cons_mat[_idx, :] = _cell.s_cons
@@ -224,6 +223,7 @@ class Field():
         return s_cons_mat
 
     def write_output(self, iteration, time):
+        self.update_var_from_vec()
         dict_out = {}
         dict_out['x'] = self.get_xi()
         dict_out['diam'] = self.get_diam()
@@ -289,7 +289,7 @@ class Field():
         s_term_momentum = s_term[:, _cell.idx_momentum]
         s_term_energy = s_term[:, _cell.idx_energy]
 
-        fig, axes = plt.subplots(3, 3, sharex=True, figsize=(9, 7))
+        fig, axes = plt.subplots(3, 3, sharex=True, figsize=(10, 6))
         plt.suptitle('Conservatives, cell-centered fluxes and source terms')
         axes[0, 0].plot(x_pos, cons_mass, '--.')
         axes[0, 0].set_ylabel(r"$\rho$")

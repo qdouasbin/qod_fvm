@@ -126,7 +126,6 @@ class Cell():
         self.f_cons[self.idx_momentum] = self.rho * self.u ** 2.
         self.f_cons[self.idx_energy] = self.rho * self.u * (self.e_tot + self.pres)
 
-
     def prim_to_cons(self):
         # Mass
         # no need, rho is prim and cons
@@ -139,12 +138,13 @@ class Cell():
 
     def cons_to_prim(self):
         # mass, ok
+        self.rho = self.w_cons[0]
 
         # momentum
-        self.u = self.rho_u / self.rho
+        self.u = self.w_cons[1] / self.rho
 
         # energy
-        self.e_tot = self.rho_E / self.rho - 0.5 * self.u ** 2
+        self.e_tot = self.w_cons[2] / self.rho - 0.5 * self.u ** 2
 
     def update_vec_from_var(self):
         self.prim_to_cons()
