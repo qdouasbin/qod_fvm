@@ -4,3 +4,7 @@
 */*.csv
 */*.pvsm
 *.png
+solut_channel/*
+make_video/*
+.idea/*
+__pycache__/*
