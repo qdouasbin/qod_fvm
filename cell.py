@@ -78,6 +78,16 @@ class Cell():
         self.x_f_1 = x_plus_half
         self.dx = self.x_f_1 - self.x_f_0
 
+    def get_T(self):
+        return self.temp
+
+    def get_P(self):
+        return self.pres
+
+    def get_u(self):
+        return self.u
+
+
     def set_T(self, T):
         self.temp = T
 

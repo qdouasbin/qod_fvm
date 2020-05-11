@@ -204,6 +204,8 @@ def create_time_collection_xmf(collection_filenames, xmf_filename):
     root = etree.Element("Xdmf", Version="2.0", nsmap=NSMAP)
     dom = etree.SubElement(root, "Domain")
 
+    print(os.path.split(xmf_filename)[-1])
+
     grid = etree.SubElement(dom, "Grid",
                             Name=os.path.split(xmf_filename)[-1],
                             GridType="Collection",

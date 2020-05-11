@@ -1,12 +1,12 @@
 # Domain
 x_min = 0
 x_max = 1
-n_cell = 5
+n_cell = 20
 
 # Time
 t_init = 0.
-n_steps = 100
-CFL = 0.1
+n_steps = 2000
+CFL = 0.7
 
 # Numercial scheme
 stencil_left = 1
@@ -22,12 +22,14 @@ init_T = 321
 init_P = 101325
 
 # BC
-bc_left_T = init_T
-bc_left_P = init_P*1.1
-bc_left_u = 3
+bc_left_T = 1.1* init_T
+bc_left_P = init_P
+bc_left_u = 250
 
 # BC right
 bc_right_P = init_P
 
 # Solution output
-output_freq = 1
+output_freq = 10
+output_dir = 'solut'
+

@@ -16,11 +16,14 @@ from cell import Cell
 from field import Field
 import FluxReconstruction as FR
 import utils
+from glob import glob
+from np_to_xmf import create_time_collection_xmf
+import os
 
 utils.plt_style()
 
 CHECK_1D_DOMAIN = 0
-CHECK_1D_INIT = 1
+CHECK_1D_INIT = 0
 CHECK_1D_BC = 0
 
 
@@ -65,9 +68,9 @@ def create_oneD_domain():
 def initialize_field(dom_1D, case=1):
     def area_x(cell):
         x = cell.x_i
-        L = 0.4
-        d_in = 1e-2
-        d_out = 2e-2
+        L = 0.95
+        d_in = 1e-1
+        d_out = 10*d_in
         x_center_slope = 0.5
         x_end_slope = x_center_slope + L / 2.
         x_beg_slope = x_center_slope - L / 2.
@@ -97,8 +100,8 @@ def initialize_field(dom_1D, case=1):
             _cell.set_P(inp.init_P)
             _cell.set_u(inp.init_u)
             _cell.set_rho_from_TP()
-            # _cell.diam, _cell.area = area_x(_cell)
-            _cell.diam, _cell.area = area_constant(_cell, 1e-2)
+            _cell.diam, _cell.area = area_x(_cell)
+            # _cell.diam, _cell.area = area_constant(_cell, 1e-2)
             _cell.compute_volume()
 
     return dom_1D
@@ -136,7 +139,6 @@ def plot_prim_var_field(dom_1D, fig_name):
 
 
 def apply_BC(field):
-    # todo: cons2prim for ghost cells
     left_ghost = field.lst_cell[0]
     left_ghost.set_u(inp.bc_left_u)
     left_ghost.set_P(inp.bc_left_P)
@@ -144,7 +146,13 @@ def apply_BC(field):
     left_ghost.set_rho_from_TP()
 
     right_ghost = field.lst_cell[-1]
+    left_of_right_ghost = field.lst_cell[-2]
+    # right_ghost.w_cons = left_of_right_ghost.w_cons
+    # right_ghost.cons_to_prim()
     right_ghost.set_P(inp.bc_right_P)
+    right_ghost.set_u(left_of_right_ghost.get_u())
+    right_ghost.set_T(left_of_right_ghost.get_T())
+    right_ghost.set_rho_from_TP()
 
     for _ghost in [left_ghost, right_ghost]:
         _ghost.update_vec_from_var()
@@ -202,12 +210,14 @@ def time_marching(field, dt):
         #
         # print("vol = %e" % cell_l.vol)
 
-        flux_adv_diff = cell_r.flux_face_l * cell_r.area
+        _area = min(cell_l.area, cell_r.area)
 
-        flux_adv_diff -= cell_l.flux_face_l * cell_l.area
-        source_terms = cell_l.s_cons * cell_l.area
+        flux_adv_diff = cell_r.flux_face_l * _area
+
+        flux_adv_diff -= cell_l.flux_face_l * _area
+        source_terms = cell_l.s_cons * _area
         residual = flux_adv_diff - source_terms
-        cell_l.w_cons -= (dt / cell_l.vol) * residual
+        cell_l.w_cons -= (dt / _area) * residual
 
 
     # update primitive
@@ -217,7 +227,7 @@ def time_marching(field, dt):
 
 
 def advance_time_step(step, time, field):
-    dt = field.compute_time_step(inp.CFL)
+    dt = field.compute_time_step(inp.CFL, step)
 
     print(" > Step %06d\ttime = %3.3e\tdt = %3.3e" % (step, time, dt))
 
@@ -232,6 +242,8 @@ def advance_time_step(step, time, field):
 if __name__ == "__main__":
     print("Start")
 
+    utils.clean_directories(inp)
+
     # Create domain
     domain = create_oneD_domain()
 
@@ -242,18 +254,12 @@ if __name__ == "__main__":
         plot_prim_var_field(field, 'init_fields')
 
     # # Apply BC --> no need to do that here
-    # field = apply_BC(field)
+    field = apply_BC(field)
 
     field.update_vec_from_var()
 
-    # Check fields after BC
-    # field.write_output(0,0)
-    # field.plot_cons()
-
     if CHECK_1D_BC:
         plot_prim_var_field(field, 'apply_BC')
-
-    # field.plot_cons()
 
     time = inp.t_init
 
@@ -261,14 +267,8 @@ if __name__ == "__main__":
         time, field = advance_time_step(step, time, field)
 
         if not step % inp.output_freq:
-            field.write_output(step, time)
-            field.plot_cons()
-
-    print(field.lst_cell[0].rho)
-    print(field.lst_cell[0].rho_u)
-    print(field.lst_cell[0].rho_E)
-    print(field.lst_cell[0].w_cons)
-
-    print(field.lst_cell[0].f_cons)
+            field.write_sol(step, time)
+            # field.write_output(step, time)
+            # field.plot_cons()
 
     print("Done")

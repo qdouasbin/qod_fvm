@@ -4,10 +4,14 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 import utils
+from np_to_xmf import NpArray2Xmf, create_time_collection_xmf
+import input_1d_solver as inp
 
 utils.plt_style()
 
 CHECK_TIME_STEP = 0
+TEST_WRITE_FUNCTION = 0
+SHOW = 0
 
 
 class Field():
@@ -68,6 +72,7 @@ class Field():
         out = []
         for _cell in self.lst_cell:
             out.append(_cell.rho_u)
+        return out
 
     def get_rho_e(self):
         out = []
@@ -123,7 +128,7 @@ class Field():
         for _idx_cell, _cell in enumerate(self.lst_cell):
             _cell.s_cons[_cell.idx_momentum] = - _cell.area * grad_p[_idx_cell]
 
-    def compute_time_step(self, cfl):
+    def compute_time_step(self, cfl, step):
         u_arr = self.get_u()
         sos = self.get_sos()
         delta_x = self.get_dx()
@@ -131,36 +136,33 @@ class Field():
         local_dt = cfl * delta_x / np.maximum(np.abs(u_arr + sos), np.abs(u_arr - sos))
 
         if CHECK_TIME_STEP:
-            fig = plt.figure()
-            plt.plot(self.get_xi(), delta_x)
-            plt.xlabel("x [m]")
-            plt.ylabel(r"$\Delta x$ [m]")
-            plt.legend()
-            utils.savefig_check('dx')
+            fig, axes = plt.subplots(2, 2, sharex=True, figsize=(6, 4.5))
+            plt.suptitle('Global dt = %e' % np.amin(local_dt))
 
-            fig = plt.figure()
-            plt.plot(self.get_xi(), sos)
-            plt.xlabel("x [m]")
-            plt.ylabel(r"Speed of sound [m/s]")
-            plt.legend()
-            utils.savefig_check('sos')
+            axes[0, 0].plot(self.get_xi(), delta_x)
+            axes[0, 0].set_ylabel(r"$\Delta x$ [m]")
 
-            fig = plt.figure()
-            plt.plot(self.get_xi(), u_arr)
-            plt.xlabel("x [m]")
-            plt.ylabel(r"Velocity [m/s]")
-            plt.legend()
-            utils.savefig_check('velocity')
+            axes[0, 1].plot(self.get_xi(), sos)
+            axes[0, 1].set_ylabel(r"Speed of sound [m/s]")
 
-            fig = plt.figure()
-            plt.plot(self.get_xi(), local_dt)
-            plt.xlabel("x [m]")
-            plt.ylabel(r"local $\Delta t$ [m/s]")
-            plt.title('Global dt = %e' % np.amin(local_dt))
-            plt.legend()
-            utils.savefig_check('local_dt')
+            axes[1, 0].plot(self.get_xi(), u_arr)
+            axes[1, 0].set_ylabel(r"Velocity [m/s]")
 
-            plt.show()
+            axes[1, 1].plot(self.get_xi(), local_dt)
+            axes[1, 1].set_ylabel(r"local $\Delta t$ [m/s]")
+
+            for idx in range(2):
+                axes[1, idx].set_xlabel("x [m]")
+
+            if not step:
+                utils.savefig_check('local_dt')
+            else:
+                utils.savefig_check('local_dt_%6d' % step)
+
+            if SHOW:
+                plt.show()
+
+            plt.close()
 
         return np.amin(local_dt)
 
@@ -267,8 +269,12 @@ class Field():
         for idx in range(3):
             axes[1, idx].set_xlabel("x [m]")
 
-        utils.savefig_solution('solut_%08d.png' % iteration)
-        plt.show()
+        utils.savefig_solution(inp.output_dir,'solut_%08d' % iteration)
+
+        if SHOW:
+            plt.show()
+
+        plt.close()
 
     def plot_cons(self, iteration=None):
         _cell = self.lst_cell[0]
@@ -319,9 +325,101 @@ class Field():
         axes[2, 2].set_ylabel(r"$S_{\rm energy}$")
 
         plt.tight_layout()
-        #
 
         for idx in range(3):
             axes[2, idx].set_xlabel("x [m]")
 
-        plt.show()
+        if SHOW:
+            plt.show()
+
+        plt.close()
+
+    def write_sol(self, step, time):
+
+        if TEST_WRITE_FUNCTION:
+            n_pts_x = 100
+            n_pts_y = 2
+
+            max_x = 5
+            x = np.linspace(0, max_x, n_pts_x)
+            y = np.array([0., 0.])
+
+            X, Y = np.meshgrid(x, y)
+            f = 4
+            Y[0, :] = np.cos(f*x) + 2
+            plt.figure()
+            plt.plot(x, np.cos(f*x) + 2)
+            plt.plot(x, Y[0,:])
+            plt.show()
+            Y[1, :] = - Y[0, :]
+            Z = np.ones((n_pts_y, n_pts_x))
+
+            xmf_out = NpArray2Xmf("./test2D_variableY.h5")
+            xmf_out.create_grid(X, Y, Z)
+
+            TEST_U = x * Z
+
+            xmf_out.add_field(TEST_U, "foobar")
+
+            xmf_out.dump()
+
+        x_arr = self.get_xi()
+        area_arr = self.get_area()
+        radius = 0.5 * np.sqrt(4 * area_arr / np.pi)
+
+        n_pts_x = len(x_arr)
+        n_pts_y = 2
+
+        y = np.array([0., 0.])
+
+        X, Y = np.meshgrid(x_arr, y)
+        Z = np.ones((n_pts_y, n_pts_x))
+
+        Y[0, :] = radius
+        Y[1, :] = - radius
+
+        xmf_out = NpArray2Xmf("./solut/solut_%08d.h5" % step, time=time)
+        xmf_out.create_grid(X, Y, Z)
+
+        output_fields = {}
+        tmp = self.get_u()
+        output_fields['vel-x'] = tmp
+
+        tmp = self.get_mach()
+        output_fields['Mach'] = tmp
+
+        tmp = self.get_sos()
+        output_fields['SoS'] = tmp
+
+        tmp = self.get_gamma()
+        output_fields['gamma'] = tmp
+
+        tmp = self.get_r_gas()
+        output_fields['R_GAS'] = tmp
+
+        tmp = self.get_rho_e()
+        output_fields['rhoE'] = tmp
+
+        tmp = self.get_rho()
+        output_fields['rho'] = tmp
+
+        tmp = self.get_P()
+        output_fields['P'] = tmp
+
+        tmp = self.get_T()
+        output_fields['T'] = tmp
+
+        tmp = self.get_rho_u()
+        output_fields['rhou'] = tmp
+
+        tmp = self.get_dx()
+        output_fields['dx'] = tmp
+
+        for key, item in output_fields.items():
+            xmf_out.add_field(output_fields[key] * Z, key)
+
+        # xmf_out.time = time
+
+        xmf_out.dump()
+
+
