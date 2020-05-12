@@ -115,7 +115,6 @@ class Cell():
     def get_internal_energy(self):
         _h = self.get_enthalpy()
         self.e_int = _h - self.pres / self.rho
-        # self.e_tot = self.e_int + 0.5 * self.u ** 2
         return self.e_int
 
     def get_total_energy(self):
@@ -128,9 +127,10 @@ class Cell():
         return sos
 
     def update_cons_vec(self):
-        self.w_cons[self.idx_mass] = self.rho * self.area
-        self.w_cons[self.idx_momentum] = self.rho_u * self.area
-        self.w_cons[self.idx_energy] = self.rho_E * self.area
+        self.w_cons[self.idx_mass] = self.rho
+        self.w_cons[self.idx_momentum] = self.rho_u
+        self.w_cons[self.idx_energy] = self.rho_E
+        self.w_cons *= self.area
 
     def update_flux_vec(self):
         self.f_cons[self.idx_mass] = self.rho * self.u
@@ -156,7 +156,7 @@ class Cell():
         self.u = self.w_cons[1] / self.rho / self.area
 
         # energy
-        self.e_tot = (self.w_cons[2] / (self.area * self.rho) - 0.5 * self.u ** 2)
+        self.e_tot = self.w_cons[2] / (self.area * self.rho)
 
     def update_vec_from_var(self):
         self.prim_to_cons()
