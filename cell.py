@@ -156,7 +156,7 @@ class Cell():
         self.u = self.w_cons[1] / self.rho / self.area
 
         # energy
-        self.e_tot = self.w_cons[2] / (self.area * self.rho) - 0.5 * self.u ** 2
+        self.e_tot = self.w_cons[2] / (self.area * self.rho)
 
     def update_vec_from_var(self):
         self.prim_to_cons()
