@@ -1,7 +1,7 @@
 import numpy as np
 
-# FR_TYPE = 'RUSANOV'
-FR_TYPE = 'LAX_FRIEDRICH'
+FR_TYPE = 'RUSANOV'
+# FR_TYPE = 'LAX_FRIEDRICH'
 
 
 def flux_reconstruction_Rusanov(c_l, c_r):

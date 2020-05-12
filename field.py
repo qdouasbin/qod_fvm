@@ -11,7 +11,7 @@ utils.plt_style()
 
 CHECK_TIME_STEP = 0
 TEST_WRITE_FUNCTION = 0
-SHOW = 0
+SHOW = 1
 
 
 class Field():
@@ -126,7 +126,20 @@ class Field():
         grad_p = np.gradient(pres, x_pos)
 
         for _idx_cell, _cell in enumerate(self.lst_cell):
-            _cell.s_cons[_cell.idx_momentum] = - _cell.area * grad_p[_idx_cell]
+            _cell.s_cons[_cell.idx_momentum] = _cell.area * grad_p[_idx_cell]
+            # _cell.s_cons[_cell.idx_momentum] = grad_p[_idx_cell]
+
+    def add_source_term_energy(self):
+        # _idx_momentum = self.lst_cell[0].idx_momentum
+        x_pos = self.get_xi()
+        pres = self.get_P()
+        area = self.get_area()
+        u_vel = self.get_u()
+
+        grad_p_energy = np.gradient(pres * area * u_vel, x_pos)
+
+        for _idx_cell, _cell in enumerate(self.lst_cell):
+            _cell.s_cons[_cell.idx_energy] = grad_p_energy[_idx_cell]
 
     def compute_time_step(self, cfl, step):
         u_arr = self.get_u()
@@ -164,7 +177,10 @@ class Field():
 
             plt.close()
 
-        return np.amin(local_dt)
+        dt_min = np.amin(local_dt)
+        assert (dt_min == dt_min)
+
+        return dt_min
 
     def update_vec_from_var(self):
         for _cell in self.lst_cell:
@@ -269,7 +285,7 @@ class Field():
         for idx in range(3):
             axes[1, idx].set_xlabel("x [m]")
 
-        utils.savefig_solution(inp.output_dir,'solut_%08d' % iteration)
+        utils.savefig_solution(inp.output_dir, 'solut_%08d' % iteration)
 
         if SHOW:
             plt.show()
@@ -346,10 +362,10 @@ class Field():
 
             X, Y = np.meshgrid(x, y)
             f = 4
-            Y[0, :] = np.cos(f*x) + 2
+            Y[0, :] = np.cos(f * x) + 2
             plt.figure()
-            plt.plot(x, np.cos(f*x) + 2)
-            plt.plot(x, Y[0,:])
+            plt.plot(x, np.cos(f * x) + 2)
+            plt.plot(x, Y[0, :])
             plt.show()
             Y[1, :] = - Y[0, :]
             Z = np.ones((n_pts_y, n_pts_x))
@@ -366,6 +382,7 @@ class Field():
         x_arr = self.get_xi()
         area_arr = self.get_area()
         radius = 0.5 * np.sqrt(4 * area_arr / np.pi)
+        _cell = self.lst_cell[0]
 
         n_pts_x = len(x_arr)
         n_pts_y = 2
@@ -415,11 +432,25 @@ class Field():
         tmp = self.get_dx()
         output_fields['dx'] = tmp
 
+        fluxes = self.get_flux_cc_matrix()
+        flux_mass = fluxes[:, _cell.idx_mass]
+        flux_momentum = fluxes[:, _cell.idx_momentum]
+        flux_energy = fluxes[:, _cell.idx_energy]
+        output_fields['flux_mass'] = flux_mass
+        output_fields['flux_momentum'] = flux_momentum
+        output_fields['flux_energy'] = flux_energy
+
+        sources = self.get_source_terms_matrix()
+        sources_mass = sources[:, _cell.idx_mass]
+        sources_momentum = sources[:, _cell.idx_momentum]
+        sources_energy = sources[:, _cell.idx_energy]
+        output_fields['sources_mass'] = sources_mass
+        output_fields['sources_momentum'] = sources_momentum
+        output_fields['sources_energy'] = sources_energy
+
         for key, item in output_fields.items():
             xmf_out.add_field(output_fields[key] * Z, key)
 
         # xmf_out.time = time
 
         xmf_out.dump()
-
-

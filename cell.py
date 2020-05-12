@@ -87,7 +87,6 @@ class Cell():
     def get_u(self):
         return self.u
 
-
     def set_T(self, T):
         self.temp = T
 
@@ -116,25 +115,28 @@ class Cell():
     def get_internal_energy(self):
         _h = self.get_enthalpy()
         self.e_int = _h - self.pres / self.rho
-        self.e_tot = self.e_int + 0.5 * self.u ** 2
-        return self.e_tot
+        # self.e_tot = self.e_int + 0.5 * self.u ** 2
+        return self.e_int
 
     def get_total_energy(self):
         self.e_tot = self.get_internal_energy() + 0.5 * self.u ** 2
         return self.e_tot
 
     def get_sos(self):
-        return np.sqrt(self.gamma * self.r_gas * self.temp)
+        sos = np.sqrt(self.gamma * self.r_gas * self.temp)
+        assert (sos > 0)
+        return sos
 
     def update_cons_vec(self):
-        self.w_cons[self.idx_mass] = self.rho
-        self.w_cons[self.idx_momentum] = self.rho_u
-        self.w_cons[self.idx_energy] = self.rho_E
+        self.w_cons[self.idx_mass] = self.rho * self.area
+        self.w_cons[self.idx_momentum] = self.rho_u * self.area
+        self.w_cons[self.idx_energy] = self.rho_E * self.area
 
     def update_flux_vec(self):
         self.f_cons[self.idx_mass] = self.rho * self.u
-        self.f_cons[self.idx_momentum] = self.rho * self.u ** 2.
-        self.f_cons[self.idx_energy] = self.rho * self.u * (self.e_tot + self.pres)
+        self.f_cons[self.idx_momentum] = self.rho * self.u ** 2. + self.pres
+        self.f_cons[self.idx_energy] = self.u * (self.rho * self.e_tot + self.pres)
+        self.f_cons *= self.area
 
     def prim_to_cons(self):
         # Mass
@@ -148,13 +150,13 @@ class Cell():
 
     def cons_to_prim(self):
         # mass, ok
-        self.rho = self.w_cons[0]
+        self.rho = self.w_cons[0] / self.area
 
         # momentum
-        self.u = self.w_cons[1] / self.rho
+        self.u = self.w_cons[1] / self.rho / self.area
 
         # energy
-        self.e_tot = self.w_cons[2] / self.rho - 0.5 * self.u ** 2
+        self.e_tot = (self.w_cons[2] / (self.area * self.rho) - 0.5 * self.u ** 2)
 
     def update_vec_from_var(self):
         self.prim_to_cons()

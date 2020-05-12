@@ -12,7 +12,7 @@ from celluloid import Camera
 
 import input_1d_solver as inp
 
-from cell import Cell
+from cell import Cell, N_TRANSPORT_EQ
 from field import Field
 import FluxReconstruction as FR
 import utils
@@ -70,7 +70,7 @@ def initialize_field(dom_1D, case=1):
         x = cell.x_i
         L = 0.95
         d_in = 1e-1
-        d_out = 10*d_in
+        d_out = 10 * d_in
         x_center_slope = 0.5
         x_end_slope = x_center_slope + L / 2.
         x_beg_slope = x_center_slope - L / 2.
@@ -100,8 +100,8 @@ def initialize_field(dom_1D, case=1):
             _cell.set_P(inp.init_P)
             _cell.set_u(inp.init_u)
             _cell.set_rho_from_TP()
-            _cell.diam, _cell.area = area_x(_cell)
-            # _cell.diam, _cell.area = area_constant(_cell, 1e-2)
+            # _cell.diam, _cell.area = area_x(_cell)
+            _cell.diam, _cell.area = area_constant(_cell, 1e-1)
             _cell.compute_volume()
 
     return dom_1D
@@ -139,17 +139,29 @@ def plot_prim_var_field(dom_1D, fig_name):
 
 
 def apply_BC(field):
+    """
+    Apply boundary conditions
+
+           ghost  BC  domain
+        |-- q_0 --|-- q_1 --|
+                  |<-- q_target
+
+        q_t = 0.5 * (q_0 + q_1)
+        q_0 = 2 q_t - q_1
+    :param field:
+    :return:
+    """
     left_ghost = field.lst_cell[0]
-    left_ghost.set_u(inp.bc_left_u)
-    left_ghost.set_P(inp.bc_left_P)
-    left_ghost.set_T(inp.bc_left_T)
+    left_ghost.set_u(2. * inp.bc_left_u - left_ghost.get_u())
+    left_ghost.set_P(2. * inp.bc_left_P - left_ghost.get_P())
+    left_ghost.set_T(2. * inp.bc_left_T - left_ghost.get_T())
     left_ghost.set_rho_from_TP()
 
     right_ghost = field.lst_cell[-1]
     left_of_right_ghost = field.lst_cell[-2]
     # right_ghost.w_cons = left_of_right_ghost.w_cons
     # right_ghost.cons_to_prim()
-    right_ghost.set_P(inp.bc_right_P)
+    right_ghost.set_P(2. * inp.bc_right_P - right_ghost.get_P())
     right_ghost.set_u(left_of_right_ghost.get_u())
     right_ghost.set_T(left_of_right_ghost.get_T())
     right_ghost.set_rho_from_TP()
@@ -165,22 +177,37 @@ def time_marching(field, dt):
     For now 1st order forward euler in time
     """
 
+    # debug
+    # field.write_output(0, 0) # ok here
+
     # cons2prim
     field.update_var_from_vec()
+
+    # debug
+    # field.write_output(0, 0) # ok here
 
     # apply BC
     apply_BC(field)
 
+    # debug
+    # field.write_output(0, 0) # ok here
+
     # prim2cons
     field.update_vec_from_var()
+
+    # debug
+    # field.write_output(0, 0) # ok here
 
     # Compute source terms
 
     # ----- Source term -----
-    field.add_source_term_p()
+    # Using the fluxes instead
+    # field.add_source_term_p()
+    # field.add_source_term_energy()
 
+    # debug
+    # field.write_output(0, 0) # ok here
     # ----- Advection -----
-
 
     # first face to be reconstructed == left bc, last = right bc
     # from (0, 1) cell to (Ng-1, Ng) where Ng = n_cell + n_ghost_cells (here 2)
@@ -189,45 +216,56 @@ def time_marching(field, dt):
 
     # reconstruct inter_cell fluxes
     for _idx, (cell_l, cell_r) in stencil_cv_it:
-        # print("x_face = %e = %e" % (cell_l.x_f_1, cell_r.x_f_0))
         inter_cell_flux = FR.get_intercell_flux(cell_l, cell_r, dt)
+        # todo: check this. There should be a minus here, right?
         cell_l.flux_face_r = inter_cell_flux
         cell_r.flux_face_l = inter_cell_flux
 
     # compute residual and update conservative
 
+    # debug
+    # field.write_output(0, 0) # ok here
+
     # here we go for cell inside the domain only (1, 2) --> (N-2, N-1)
     stencil_cv_it = enumerate(zip(field.lst_cell[1:-1], field.lst_cell[2:]))
     for _idx, (cell_l, cell_r) in stencil_cv_it:
-        # print("cell_l.xi = %e, cell_r.xi = %e" % (cell_l.x_i, cell_r.x_i))
-
-        # print("cell_l.flux_face_l \t:%e\t%e\t%e" % (cell_l.flux_face_l[0], cell_l.flux_face_l[1], cell_l.flux_face_l[2]))
-        # print("cell_l.flux_face_r \t:%e\t%e\t%e" % (cell_l.flux_face_r[0], cell_l.flux_face_r[1], cell_l.flux_face_r[2]))
-        #
-        # print("cell_l.area \t = %e" % cell_l.area)
-        # print("cell_r.area \t = %e" % cell_r.area)
-        # print("cell_r.area \t = %e" % cell_r.area)
-        #
-        # print("vol = %e" % cell_l.vol)
-
-        _area = min(cell_l.area, cell_r.area)
+        # _area = min(cell_l.area, cell_r.area)
+        _area = 0.5  * (cell_l.area + cell_r.area)
+        # _area = cell_l.area
 
         flux_adv_diff = cell_r.flux_face_l * _area
 
         flux_adv_diff -= cell_l.flux_face_l * _area
-        source_terms = cell_l.s_cons * _area
-        residual = flux_adv_diff - source_terms
-        cell_l.w_cons -= (dt / _area) * residual
+        # source_terms = cell_l.s_cons #* _area
+        source_terms = cell_l.s_cons
 
+        residual = flux_adv_diff + source_terms
+
+        # Check for nan
+        for idx in range(N_TRANSPORT_EQ):
+            assert (residual[idx] == residual[idx])
+
+        # cell_l.w_cons -= (dt / cell_l.area) * residual
+        # cell_l.w_cons -= (dt / cell_l.dx) * residual
+        cell_l.w_cons -= (dt / cell_l.dx) * residual
+
+    # debug
+    # field.write_output(0, 0)
+    # field.plot_cons()
 
     # update primitive
     field.update_var_from_vec()
+
+    # debug
+    # field.write_output(0, 0)
 
     return field
 
 
 def advance_time_step(step, time, field):
     dt = field.compute_time_step(inp.CFL, step)
+
+    _ = field.get_sos()
 
     print(" > Step %06d\ttime = %3.3e\tdt = %3.3e" % (step, time, dt))
 
@@ -236,7 +274,6 @@ def advance_time_step(step, time, field):
     time = time + dt
 
     return time, field
-
 
 
 if __name__ == "__main__":
@@ -262,8 +299,10 @@ if __name__ == "__main__":
         plot_prim_var_field(field, 'apply_BC')
 
     time = inp.t_init
+    field.write_sol(0, time)
 
     for step in range(inp.n_steps):
+        step += 1
         time, field = advance_time_step(step, time, field)
 
         if not step % inp.output_freq:
