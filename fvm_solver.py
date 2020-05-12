@@ -70,7 +70,7 @@ def initialize_field(dom_1D, case=1):
         x = cell.x_i
         L = 0.95
         d_in = 1e-1
-        d_out = 10 * d_in
+        d_out = 5 * d_in
         x_center_slope = 0.5
         x_end_slope = x_center_slope + L / 2.
         x_beg_slope = x_center_slope - L / 2.
@@ -100,8 +100,8 @@ def initialize_field(dom_1D, case=1):
             _cell.set_P(inp.init_P)
             _cell.set_u(inp.init_u)
             _cell.set_rho_from_TP()
-            # _cell.diam, _cell.area = area_x(_cell)
-            _cell.diam, _cell.area = area_constant(_cell, 1e-1)
+            _cell.diam, _cell.area = area_x(_cell)
+            # _cell.diam, _cell.area = area_constant(_cell, 1e-1)
             _cell.compute_volume()
 
     return dom_1D
@@ -155,17 +155,13 @@ def apply_BC(field):
     right_cell = field.lst_cell[1]
     left_ghost.cons_to_prim()
     right_cell.cons_to_prim()
-    left_ghost.set_u(inp.bc_left_u)# + 0.5 *(inp.bc_left_u - right_cell.get_u()))
+    left_ghost.set_u(inp.bc_left_u)
     left_ghost.set_P(right_cell.get_P())
-    left_ghost.set_T(inp.bc_left_T )#- right_cell.get_T())
+    left_ghost.set_T(inp.bc_left_T )
     left_ghost.set_rho_from_TP()
-    print("\t ghost, u, p, T = %3.3e, %3.3e, %3.3e" % (
-    left_ghost.get_u(), left_ghost.get_P(), left_ghost.get_T()))
 
     right_ghost = field.lst_cell[-1]
     left_of_right_ghost = field.lst_cell[-2]
-    # right_ghost.w_cons = left_of_right_ghost.w_cons
-    # right_ghost.cons_to_prim()`
     right_ghost.set_P(2. * inp.bc_right_P - left_ghost.get_P())
     right_ghost.set_u(left_of_right_ghost.get_u())
     right_ghost.set_T(left_of_right_ghost.get_T())
@@ -181,37 +177,20 @@ def time_marching(field, dt):
     """
     For now 1st order forward euler in time
     """
-
-    # debug
-    # field.write_output(0, 0) # ok here
-
     # cons2prim
     field.update_var_from_vec()
-
-    # debug
-    # field.write_output(0, 0) # ok here
 
     # apply BC
     apply_BC(field)
 
-    # debug
-    # field.write_output(0, 0) # ok here
-
     # prim2cons
     field.update_vec_from_var()
-
-    # debug
-    # field.write_output(0, 0) # ok here
 
     # Compute source terms
 
     # ----- Source term -----
     # Using the fluxes instead
-    # field.add_source_term_p()
-    # field.add_source_term_energy()
 
-    # debug
-    # field.write_output(0, 0) # ok here
     # ----- Advection -----
 
     # first face to be reconstructed == left bc, last = right bc
@@ -222,26 +201,22 @@ def time_marching(field, dt):
     # reconstruct inter_cell fluxes
     for _idx, (cell_l, cell_r) in stencil_cv_it:
         inter_cell_flux = FR.get_intercell_flux(cell_l, cell_r, dt)
-        # todo: check this. There should be a minus here, right?
         cell_l.flux_face_r = inter_cell_flux
         cell_r.flux_face_l = inter_cell_flux
 
     # compute residual and update conservative
 
-    # debug
-    # field.write_output(0, 0) # ok here
-
     # here we go for cell inside the domain only (1, 2) --> (N-2, N-1)
     stencil_cv_it = enumerate(zip(field.lst_cell[1:-1], field.lst_cell[2:]))
     for _idx, (cell_l, cell_r) in stencil_cv_it:
-        # _area = min(cell_l.area, cell_r.area)
         _area = 0.5 * (cell_l.area + cell_r.area)
-        # _area = cell_l.area
+        # _area = min(cell_l.area, cell_r.area)
 
+        # flux_adv_diff = cell_r.flux_face_l * cell_r.area
         flux_adv_diff = cell_r.flux_face_l * _area
 
+        # flux_adv_diff -= cell_l.flux_face_l * cell_l.area
         flux_adv_diff -= cell_l.flux_face_l * _area
-        # source_terms = cell_l.s_cons #* _area
         source_terms = cell_l.s_cons
 
         residual = flux_adv_diff + source_terms
@@ -250,19 +225,10 @@ def time_marching(field, dt):
         for idx in range(N_TRANSPORT_EQ):
             assert (residual[idx] == residual[idx])
 
-        # cell_l.w_cons -= (dt / cell_l.area) * residual
-        # cell_l.w_cons -= (dt / cell_l.dx) * residual
         cell_l.w_cons -= (dt / cell_l.dx) * residual
-
-    # debug
-    # field.write_output(0, 0)
-    # field.plot_cons()
 
     # update primitive
     field.update_var_from_vec()
-
-    # debug
-    # field.write_output(0, 0)
 
     return field
 
@@ -294,9 +260,6 @@ if __name__ == "__main__":
 
     if CHECK_1D_INIT:
         plot_prim_var_field(field, 'init_fields')
-
-    # # Apply BC --> no need to do that here
-    # field = apply_BC(field)
 
     field.update_vec_from_var()
 
