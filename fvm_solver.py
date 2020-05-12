@@ -152,16 +152,21 @@ def apply_BC(field):
     :return:
     """
     left_ghost = field.lst_cell[0]
-    left_ghost.set_u(2. * inp.bc_left_u - left_ghost.get_u())
-    left_ghost.set_P(2. * inp.bc_left_P - left_ghost.get_P())
-    left_ghost.set_T(2. * inp.bc_left_T - left_ghost.get_T())
+    right_cell = field.lst_cell[1]
+    left_ghost.cons_to_prim()
+    right_cell.cons_to_prim()
+    left_ghost.set_u(inp.bc_left_u)# + 0.5 *(inp.bc_left_u - right_cell.get_u()))
+    left_ghost.set_P(right_cell.get_P())
+    left_ghost.set_T(inp.bc_left_T )#- right_cell.get_T())
     left_ghost.set_rho_from_TP()
+    print("\t ghost, u, p, T = %3.3e, %3.3e, %3.3e" % (
+    left_ghost.get_u(), left_ghost.get_P(), left_ghost.get_T()))
 
     right_ghost = field.lst_cell[-1]
     left_of_right_ghost = field.lst_cell[-2]
     # right_ghost.w_cons = left_of_right_ghost.w_cons
-    # right_ghost.cons_to_prim()
-    right_ghost.set_P(2. * inp.bc_right_P - right_ghost.get_P())
+    # right_ghost.cons_to_prim()`
+    right_ghost.set_P(2. * inp.bc_right_P - left_ghost.get_P())
     right_ghost.set_u(left_of_right_ghost.get_u())
     right_ghost.set_T(left_of_right_ghost.get_T())
     right_ghost.set_rho_from_TP()
@@ -230,7 +235,7 @@ def time_marching(field, dt):
     stencil_cv_it = enumerate(zip(field.lst_cell[1:-1], field.lst_cell[2:]))
     for _idx, (cell_l, cell_r) in stencil_cv_it:
         # _area = min(cell_l.area, cell_r.area)
-        _area = 0.5  * (cell_l.area + cell_r.area)
+        _area = 0.5 * (cell_l.area + cell_r.area)
         # _area = cell_l.area
 
         flux_adv_diff = cell_r.flux_face_l * _area
@@ -291,7 +296,7 @@ if __name__ == "__main__":
         plot_prim_var_field(field, 'init_fields')
 
     # # Apply BC --> no need to do that here
-    field = apply_BC(field)
+    # field = apply_BC(field)
 
     field.update_vec_from_var()
 

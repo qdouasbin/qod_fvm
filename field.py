@@ -395,7 +395,9 @@ class Field():
         Y[0, :] = radius
         Y[1, :] = - radius
 
-        xmf_out = NpArray2Xmf("./solut/solut_%08d.h5" % step, time=time)
+        sol_name = "./solut/solut_%08d.h5" % step
+
+        xmf_out = NpArray2Xmf(sol_name, time=time)
         xmf_out.create_grid(X, Y, Z)
 
         output_fields = {}
@@ -451,6 +453,6 @@ class Field():
         for key, item in output_fields.items():
             xmf_out.add_field(output_fields[key] * Z, key)
 
-        # xmf_out.time = time
+        print("\t--> Writing solution: %s" % sol_name)
 
         xmf_out.dump()
