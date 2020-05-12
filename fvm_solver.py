@@ -70,7 +70,7 @@ def initialize_field(dom_1D, case=1):
         x = cell.x_i
         L = 0.95
         d_in = 1e-1
-        d_out = 5 * d_in
+        d_out = 2 * d_in
         x_center_slope = 0.5
         x_end_slope = x_center_slope + L / 2.
         x_beg_slope = x_center_slope - L / 2.
@@ -201,16 +201,16 @@ def time_marching(field, dt):
     # reconstruct inter_cell fluxes
     for _idx, (cell_l, cell_r) in stencil_cv_it:
         inter_cell_flux = FR.get_intercell_flux(cell_l, cell_r, dt)
-        cell_l.flux_face_r = inter_cell_flux
-        cell_r.flux_face_l = inter_cell_flux
+        cell_l.flux_face_r = inter_cell_flux * cell_l.normal_r
+        cell_r.flux_face_l = inter_cell_flux * cell_r.normal_l
 
     # compute residual and update conservative
 
     # here we go for cell inside the domain only (1, 2) --> (N-2, N-1)
     stencil_cv_it = enumerate(zip(field.lst_cell[1:-1], field.lst_cell[2:]))
     for _idx, (cell_l, cell_r) in stencil_cv_it:
-        _area = 0.5 * (cell_l.area + cell_r.area)
-        # _area = min(cell_l.area, cell_r.area)
+        # _area = 0.5 * (cell_l.area + cell_r.area)
+        _area = min(cell_l.area, cell_r.area)
 
         # flux_adv_diff = cell_r.flux_face_l * cell_r.area
         flux_adv_diff = cell_r.flux_face_l * _area
@@ -219,13 +219,13 @@ def time_marching(field, dt):
         flux_adv_diff -= cell_l.flux_face_l * _area
         source_terms = cell_l.s_cons
 
-        residual = flux_adv_diff + source_terms
+        residual = flux_adv_diff
 
         # Check for nan
         for idx in range(N_TRANSPORT_EQ):
             assert (residual[idx] == residual[idx])
 
-        cell_l.w_cons -= (dt / cell_l.dx) * residual
+        cell_l.w_cons -= (dt / cell_l.dx) * residual + dt * source_terms
 
     # update primitive
     field.update_var_from_vec()

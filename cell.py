@@ -32,6 +32,9 @@ class Cell():
         self.vol = 0.
         # Do we have trapezoidal elements?
 
+        self.normal_l = 1.
+        self.normal_r = -1
+
         # variables
         self.pres = 0.
         self.temp = 0.
