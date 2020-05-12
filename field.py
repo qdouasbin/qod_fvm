@@ -434,6 +434,12 @@ class Field():
         tmp = self.get_dx()
         output_fields['dx'] = tmp
 
+        tmp = np.linspace(0, len(tmp-1), len(tmp))
+        output_fields['idx_cv'] = tmp
+
+        tmp = self.get_area()
+        output_fields['A'] = tmp
+
         fluxes = self.get_flux_cc_matrix()
         flux_mass = fluxes[:, _cell.idx_mass]
         flux_momentum = fluxes[:, _cell.idx_momentum]
