@@ -161,6 +161,14 @@ class Cell():
         # energy
         self.e_tot = self.w_cons[2] / (self.area * self.rho)
 
+        self.pres = (self.gamma - 1.) * self.rho * \
+                    (self.e_tot - 0.5 * self.u ** 2)
+
+        # set T
+        self.set_T_from_RP()
+
+        _ = self.get_internal_energy()
+
     def update_vec_from_var(self):
         self.prim_to_cons()
         self.update_cons_vec()
@@ -168,9 +176,3 @@ class Cell():
 
     def update_var_from_vec(self):
         self.cons_to_prim()
-
-        self.pres = (self.gamma - 1.) * self.rho * \
-                    (self.e_tot - 0.5 * self.u ** 2)
-
-        # set T
-        self.set_T_from_RP()

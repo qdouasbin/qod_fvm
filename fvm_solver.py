@@ -100,8 +100,8 @@ def initialize_field(dom_1D, case=1):
             _cell.set_P(inp.init_P)
             _cell.set_u(inp.init_u)
             _cell.set_rho_from_TP()
-            _cell.diam, _cell.area = area_x(_cell)
-            # _cell.diam, _cell.area = area_constant(_cell, 1e-1)
+            # _cell.diam, _cell.area = area_x(_cell)
+            _cell.diam, _cell.area = area_constant(_cell, 1e-1)
             _cell.compute_volume()
 
     return dom_1D
@@ -153,19 +153,27 @@ def apply_BC(field):
     """
     left_ghost = field.lst_cell[0]
     right_cell = field.lst_cell[1]
-    left_ghost.cons_to_prim()
-    right_cell.cons_to_prim()
-    left_ghost.set_u(inp.bc_left_u)
+    right_right_cell = field.lst_cell[2]
+    # left_ghost.cons_to_prim()
+    # right_cell.cons_to_prim()
+    left_ghost.set_u(2. * inp.bc_left_u - right_right_cell.get_u())
     left_ghost.set_P(right_cell.get_P())
-    left_ghost.set_T(inp.bc_left_T )
+    left_ghost.set_T(2. * inp.bc_left_T - right_right_cell.get_T())
     left_ghost.set_rho_from_TP()
 
     right_ghost = field.lst_cell[-1]
     left_of_right_ghost = field.lst_cell[-2]
-    right_ghost.set_P(2. * inp.bc_right_P - left_ghost.get_P())
+    left_left_cell = field.lst_cell[-2]
+    # right_cell.w_cons = left_of_right_ghost.w_cons
+    # right_cell.cons_to_prim()
+    right_ghost.set_P(2. * inp.bc_right_P - left_left_cell.get_P())
+    # right_ghost.set_P(inp.bc_right_P)
     right_ghost.set_u(left_of_right_ghost.get_u())
     right_ghost.set_T(left_of_right_ghost.get_T())
     right_ghost.set_rho_from_TP()
+
+    if right_ghost.get_u() < 0.:
+        right_ghost.set_u(0)
 
     for _ghost in [left_ghost, right_ghost]:
         _ghost.update_vec_from_var()
@@ -210,22 +218,22 @@ def time_marching(field, dt):
     stencil_cv_it = enumerate(zip(field.lst_cell[1:-1], field.lst_cell[2:]))
     for _idx, (cell_l, cell_r) in stencil_cv_it:
         # _area = 0.5 * (cell_l.area + cell_r.area)
-        _area = min(cell_l.area, cell_r.area)
+        # _area = min(cell_l.area, cell_r.area)
 
-        # flux_adv_diff = cell_r.flux_face_l * cell_r.area
-        flux_adv_diff = cell_r.flux_face_l * _area
+        flux_adv_diff = cell_r.flux_face_l * cell_r.area
+        # flux_adv_diff = cell_r.flux_face_l * _area
 
-        # flux_adv_diff -= cell_l.flux_face_l * cell_l.area
-        flux_adv_diff -= cell_l.flux_face_l * _area
+        flux_adv_diff -= cell_l.flux_face_l * cell_l.area
+        # flux_adv_diff -= cell_l.flux_face_l * _area
+
+        # no area weighting
+        # flux_adv_diff = cell_l.flux_face_l + cell_l.flux_face_r
+
         source_terms = cell_l.s_cons
 
         residual = flux_adv_diff
 
-        # Check for nan
-        for idx in range(N_TRANSPORT_EQ):
-            assert (residual[idx] == residual[idx])
-
-        cell_l.w_cons -= (dt / cell_l.dx) * residual + dt * source_terms
+        cell_l.w_cons -= (dt / cell_l.dx) * residual - dt * source_terms
 
     # update primitive
     field.update_var_from_vec()
@@ -268,13 +276,15 @@ if __name__ == "__main__":
 
     time = inp.t_init
     field.write_sol(0, time)
+    field.write_sol_adim(0, time, inp)
 
     for step in range(inp.n_steps):
         step += 1
         time, field = advance_time_step(step, time, field)
 
         if not step % inp.output_freq:
-            field.write_sol(step, time)
+            # field.write_sol(step, time)
+            field.write_sol_adim(step, time, inp)
             # field.write_output(step, time)
             # field.plot_cons()
 

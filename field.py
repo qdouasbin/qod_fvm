@@ -72,7 +72,7 @@ class Field():
         out = []
         for _cell in self.lst_cell:
             out.append(_cell.rho_u)
-        return out
+        return np.array(out)
 
     def get_rho_e(self):
         out = []
@@ -430,6 +430,94 @@ class Field():
 
         tmp = self.get_rho_u()
         output_fields['rhou'] = tmp
+
+        tmp = self.get_dx()
+        output_fields['dx'] = tmp
+
+        tmp = np.linspace(0, len(tmp-1), len(tmp))
+        output_fields['idx_cv'] = tmp
+
+        tmp = self.get_area()
+        output_fields['A'] = tmp
+
+        fluxes = self.get_flux_cc_matrix()
+        flux_mass = fluxes[:, _cell.idx_mass]
+        flux_momentum = fluxes[:, _cell.idx_momentum]
+        flux_energy = fluxes[:, _cell.idx_energy]
+        output_fields['flux_mass'] = flux_mass
+        output_fields['flux_momentum'] = flux_momentum
+        output_fields['flux_energy'] = flux_energy
+
+        sources = self.get_source_terms_matrix()
+        sources_mass = sources[:, _cell.idx_mass]
+        sources_momentum = sources[:, _cell.idx_momentum]
+        sources_energy = sources[:, _cell.idx_energy]
+        output_fields['sources_mass'] = sources_mass
+        output_fields['sources_momentum'] = sources_momentum
+        output_fields['sources_energy'] = sources_energy
+
+        for key, item in output_fields.items():
+            xmf_out.add_field(output_fields[key] * Z, key)
+
+        print("\t--> Writing solution: %s" % sol_name)
+
+        xmf_out.dump()
+
+    def write_sol_adim(self, step, time, inp):
+
+        x_arr = self.get_xi()
+        area_arr = self.get_area()
+        radius = 0.5 * np.sqrt(4 * area_arr / np.pi)
+        _cell = self.lst_cell[0]
+
+        n_pts_x = len(x_arr)
+        n_pts_y = 2
+
+        y = np.array([0., 0.])
+
+        X, Y = np.meshgrid(x_arr, y)
+        Z = np.ones((n_pts_y, n_pts_x))
+
+        Y[0, :] = radius
+        Y[1, :] = - radius
+
+        sol_name = "./solut/solut_normalized_%08d.h5" % step
+
+        xmf_out = NpArray2Xmf(sol_name, time=time)
+        xmf_out.create_grid(X, Y, Z)
+
+        output_fields = {}
+        tmp = self.get_u()
+        output_fields['vel-x'] = tmp / inp.init_u
+
+        tmp = self.get_mach()
+        output_fields['Mach'] = tmp
+        #
+        # tmp = self.get_sos()
+        # output_fields['SoS'] = tmp
+
+        # tmp = self.get_gamma()
+        # output_fields['gamma'] = tmp
+        #
+        # tmp = self.get_r_gas()
+        # output_fields['R_GAS'] = tmp
+
+        # tmp = self.get_rho_e()
+        # output_fields['rhoE'] = tmp
+        #
+        _init_rho = (inp.init_P / _cell.r_gas / inp.init_T)
+
+        tmp = self.get_rho()
+        output_fields['rho'] = tmp / _init_rho
+
+        tmp = self.get_P()
+        output_fields['P'] = tmp / inp.init_P
+
+        tmp = self.get_T()
+        output_fields['T'] = tmp / inp.init_T
+
+        tmp = self.get_rho_u()
+        output_fields['rhou'] = tmp / inp.init_u / _init_rho
 
         tmp = self.get_dx()
         output_fields['dx'] = tmp
