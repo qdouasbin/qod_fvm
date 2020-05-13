@@ -62,7 +62,7 @@ init_P = 101325.0
     T = 650
     u = 4.5
     idx_cell = 0
-
+    
     [BoundaryConditions.right]
     type = "outlet_P"
     method = "Dirichlet"
@@ -70,6 +70,6 @@ init_P = 101325.0
     idx_cell = -1
 
 [IO]
-	frequency = 500
-	directory = 'solution'
+frequency = 500
+directory = 'solution'
 ```
