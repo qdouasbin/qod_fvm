@@ -10,7 +10,10 @@ $$
 $$
 Considering a quasi-1D control volume we have:
 
+<!--![](C:\Users\quent\PycharmProjects\one_dimensional_fv_solver\doc\cv.svg)-->
 ![](C:\Users\quent\PycharmProjects\one_dimensional_fv_solver\doc\cv.svg)
+
+
 
 First, we note that since $dAdx$ is small, we have the following simplification for the first term: 
 $$
