@@ -1,3 +1,5 @@
+*.pyc
+*.rst
 */*.png
 */*.xmf
 */*.h5
@@ -7,4 +9,5 @@
 solut_channel/*
 make_video/*
 .idea/*
-__pycache__/*
+docs/build
+qod_fvm/__pycache__/*.pyc

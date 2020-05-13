@@ -1,0 +1,181 @@
+# Quasi-1D FVM solver
+
+## Euler equation
+
+### Continuity 
+
+The continuity equation reads:
+$$
+\frac{\partial}{\partial t} \iiint_V \rho dV + \iint_S \rho \mathbf{u}\cdot \mathbf{dS} = 0
+$$
+Considering a quasi-1D control volume we have:
+
+![](C:\Users\quent\PycharmProjects\one_dimensional_fv_solver\doc\cv.svg)
+
+First, we note that since $dAdx$ is small, we have the following simplification for the first term: 
+$$
+lim_{dx \to 0} \frac{\partial}{\partial t} \iiint_V \rho dV = \frac{\partial}{\partial t} \left( \rho A dx \right)
+$$
+The second term is:
+$$
+\iint_S \rho \mathbf{u}\cdot \mathbf{dS} = -\rho u A + (\rho +d\rho)(u + du)(A+dA)
+$$
+Keep only the first order terms, _i.e._ neglecting the cross products $dq_1dq_2$, we have:
+$$
+\iint_S \rho \mathbf{u}\cdot \mathbf{dS} = \rho u dA + \rho A du + u A d\rho  = d \left(  \rho A u\right)
+$$
+Combining Eqs. (2) and (4) and dividing by $dx$ leads to the quasi-1D continuity equation:
+$$
+\frac{\partial }{\partial t} \left( \rho A\right) + \frac{\partial }{\partial x} \left( \rho A u\right) = 0
+$$
+We note that this equation reduces to the 1D Euler equation for constant cross sections.
+
+### Momentum
+
+The momentum conservation over the control volume is is written as:
+$$
+\frac{\partial}{\partial t}\iiint_V \left( \rho u \right)dV + \iint_S \left( \rho u  \mathbf{u}\right) \cdot \mathbf{dS} = - \iint_S \frac{\partial }{\partial x} \left( p \mathbf{dS} \right)
+$$
+Similarly to the continuity equation, the first term can be simplified as:
+$$
+\frac{\partial}{\partial t}\iiint_V \left( \rho u \right)dV = \frac{\partial}{\partial t} \left( \rho u A dx \right)
+$$
+The second term:
+$$
+\iint_S \left( \rho u  \mathbf{u}\right) \cdot \mathbf{dS} = -\rho u^2 A + (\rho +d\rho)(u + du)^2(A+dA) = \rho u^2 A
+$$
+The right hand side is:
+$$
+- \iint_S \frac{\partial }{\partial x} \left( p \mathbf{dS} \right) = -pA + (p + dp)(A+dA) - 2 p \frac{dA}{2} = -A d p
+$$
+Combining this terms and dividing by $dx$ leads to the quasi-1D momentum equation:
+$$
+\frac{\partial}{\partial t} \left( \rho u A \right) + \frac{\partial}{\partial x} \left( \rho u^2 A\right) = - A \frac{\partial p}{\partial x}
+$$
+
+### Energy
+
+Following the derivation of the quasi-1D continuity and energy equations, the quasi-1D energy equation reads:
+$$
+\frac{\partial}{\partial t} \left[ \rho \left( e + \frac{u^2}{2}\right) \right] + \frac{\partial}{\partial x} \left[ \rho u A \left( e + \frac{u^2}{2}\right) \right] 
+=
+- \frac{\partial}{\partial x} \left( p A u \right)
+$$
+
+
+## Euler equation: Matrix form
+
+In the matrix form, the Quasi-1D Euler equations can be written as follows:
+$$
+\frac{\partial \mathbf{U}}{\partial t} + \frac{\partial \mathbf{F}}{\partial x} = - \mathbf{S}
+$$
+With
+$$
+\mathbf{U}
+ = 
+ \begin{bmatrix}
+\rho A\\
+\rho u A\\
+\rho E A
+\end{bmatrix}
+\quad \text{with} \quad E = e + \frac{u_2}{2}
+$$
+
+$$
+\mathbf{F}
+ = 
+ \begin{bmatrix}
+\rho u A\\
+\rho u^2 A\\
+\rho E u A
+\end{bmatrix}
+$$
+
+$$
+\mathbf{S}
+ = 
+ \begin{bmatrix}
+0\\
+A \frac{\partial p}{\partial x}\\
+\frac{\partial}{\partial x} \left( p u A \right)
+\end{bmatrix}
+$$
+
+Moving the right hand sides to the fluxes we have:
+$$
+\frac{\partial \mathbf{U}}{\partial t} + \frac{\partial \mathbf{F}}{\partial x} = - \mathbf{S}
+$$
+With
+$$
+\mathbf{U} =  \begin{bmatrix}\rho A\\\rho u A\\\rho E A\end{bmatrix}\quad \text{with} \quad E = e + \frac{u_2}{2}
+$$
+
+$$
+\mathbf{F} =  A \begin{bmatrix}
+\rho u \\
+\rho u^2 + p\\
+u \left( \rho E + p\right)
+\end{bmatrix}
+$$
+
+$$
+\mathbf{S} =  
+\begin{bmatrix}
+0\\0\\0
+\end{bmatrix}
+$$
+
+From this we have:
+$$
+\frac{\partial \mathbf{U}}{\partial t} = - \left[ \frac{\partial \mathbf{F}}{\partial x} + \mathbf{S} \right]
+$$
+
+# Boundary conditions
+
+## Inlet UTY
+
+This inlet forces the axial velocity, the temperature and the mixture fractions to be the target values at the right face of the ghost cell. The pressure is extrapolated from the neighboring cell and the density is computed from the temperature and the pressure. To do that, the gradient at the first cell of the domain is approximated via a first order forward Euler in space.
+
+### Imposing value at face
+
+The value at the ghost cell is computed to correct the error:
+$$
+q_f = \frac{q_0 + q_1}{2} \rightarrow q_0 = 2q_f - q_1
+$$
+Setting the face value $q_f$ to be the target value $q_t$, we have:
+$$
+q_0 = 2q_t - q_1
+$$
+
+
+For instance:
+
+```python
+def apply_BC(field):
+    """
+    Apply boundary conditions
+
+           ghost  BC  domain
+        |-- q_0 --|-- q_1 --|
+                  |<-- q_target
+
+        q_t = 0.5 * (q_0 + q_1)
+        q_0 = 2 q_t - q_1
+    :param field: Field object
+    :return: modified field object
+    """
+    left_ghost = field.lst_cell[0]
+    right_cell = field.lst_cell[1]
+    right_right_cell = field.lst_cell[2]
+    left_ghost.set_u(2. * bc_left_u - right_right_cell.get_u())
+    left_ghost.set_P(right_cell.get_P())
+    left_ghost.set_T(2. * bc_left_T - right_right_cell.get_T())
+    left_ghost.set_rho_from_TP()
+        
+	# update conservative variables
+    for _ghost in [left_ghost, right_ghost]:
+        _ghost.update_vec_from_var()
+
+    return field
+```
+

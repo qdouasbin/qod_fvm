@@ -8,8 +8,8 @@ def plt_style():
     Set personal matplotlib settings
     """
     plt.style.use('seaborn')
-    lst_styles = glob.glob('*/*mplstyle')
-    plt.style.use(lst_styles[-1])
+    # lst_styles = glob.glob('*/*mplstyle')
+    # plt.style.use(lst_styles[-1])
     plt.style.use("tableau-colorblind10")
 
 
@@ -61,3 +61,41 @@ def clean_directories(params_IO):
                 os.remove(my_file)
             except:
                 print("Error while deleting file : ", my_file)
+
+
+
+def plot_prim_var_field(dom_1D, fig_name):
+    """
+    Plot the field of primitive variable with matplotlib
+    :param dom_1D: domain (Field object)
+    :param fig_name: file name
+    """
+    xi = dom_1D.get_xi()
+    area = dom_1D.get_area()
+    area_max = area.max()
+    temp = dom_1D.get_T()
+    temp_max = temp.max()
+    pres = dom_1D.get_P()
+    pres_max = pres.max()
+    rho = dom_1D.get_rho()
+    rho_max = rho.max()
+
+    u = dom_1D.get_u()
+    u_max = np.amax(u)
+
+    plt.figure()
+    plt.plot(xi, area / area_max, ':.', label='A/%2.2e' % area_max)
+    plt.plot(xi, temp / temp_max, '--+', label='T/%2.2e' % temp_max)
+    plt.plot(xi, pres / pres_max, '--x', label='P/%2.2e' % pres_max)
+    plt.plot(xi, rho / rho_max, '--', label=r'$\rho$/%2.2e' % rho_max)
+
+    if (u_max):
+        plt.plot(xi, u / u_max, '--', label=r'u/%2.2e' % u_max)
+    else:
+        plt.plot(xi, u, '--', label=r'u [m/s]')
+
+    plt.legend()
+    plt.xlabel(r'x [m]')
+    plt.savefig("Figures/checks/%s.png" % fig_name)
+    plt.show()
+

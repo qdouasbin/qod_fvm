@@ -1,4 +1,5 @@
 # Example input file for the Quasi-1D Finite Volume solver
+
 [TimeMarching]
 CFL = 0.8
 time_init = 0.0

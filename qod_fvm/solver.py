@@ -1,17 +1,28 @@
 """
 Solving a toy problem with a 1D finite volume solver:
 
-Assumptions:
+    Details:
+
+        1. Equations: Euler equations
+        2. Numerics:
+            - 1st order in time (forward Euler)
+            - 1st order in space (Rusanov or Lax-Friedrich flux reconstruction)
+        3. Boundary conditions:
+            - left: inlet_uty
+            - right: outlet_p
+            - types: Dirichlet or flux formulation
+        4. Input file: TOML format
+        5. Fluid properties
+            - gaseous
+            - calorically perfect gas
+            - non-viscous
 
 """
 
 import glob
-import pprint
 
 import numpy as np
 import matplotlib.pyplot as plt
-
-# from tests.check_steady_solution import input_1d_solver as inp
 
 from qod_fvm import FluxReconstruction as FR, utils
 from qod_fvm import bc
@@ -20,7 +31,6 @@ from qod_fvm import mesh
 utils.plt_style()
 
 CHECK_1D_INIT = 0
-CHECK_1D_BC = 0
 
 
 def initialize_field(dom_1D, params_init, params_geom, params_fluid):
@@ -95,36 +105,6 @@ def initialize_field(dom_1D, params_init, params_geom, params_fluid):
 
     return dom_1D
 
-
-def plot_prim_var_field(dom_1D, fig_name):
-    xi = dom_1D.get_xi()
-    area = dom_1D.get_area()
-    area_max = area.max()
-    temp = dom_1D.get_T()
-    temp_max = temp.max()
-    pres = dom_1D.get_P()
-    pres_max = pres.max()
-    rho = dom_1D.get_rho()
-    rho_max = rho.max()
-
-    u = dom_1D.get_u()
-    u_max = np.amax(u)
-
-    plt.figure()
-    plt.plot(xi, area / area_max, ':.', label='A/%2.2e' % area_max)
-    plt.plot(xi, temp / temp_max, '--+', label='T/%2.2e' % temp_max)
-    plt.plot(xi, pres / pres_max, '--x', label='P/%2.2e' % pres_max)
-    plt.plot(xi, rho / rho_max, '--', label=r'$\rho$/%2.2e' % rho_max)
-
-    if (u_max):
-        plt.plot(xi, u / u_max, '--', label=r'u/%2.2e' % u_max)
-    else:
-        plt.plot(xi, u, '--', label=r'u [m/s]')
-
-    plt.legend()
-    plt.xlabel(r'x [m]')
-    plt.savefig("Figures/checks/%s.png" % fig_name)
-    plt.show()
 
 
 def time_marching(field, dt):
@@ -211,14 +191,11 @@ def main(params):
                              params["Fluid"])
 
     if CHECK_1D_INIT:
-        plot_prim_var_field(field, 'init_fields')
+        utils.plot_prim_var_field(field, 'init_fields')
 
     bc.init_BC(field, params['BoundaryConditions'])
 
     field.update_vec_from_var()
-
-    if CHECK_1D_BC:
-        plot_prim_var_field(field, 'apply_BC')
 
     time = params["TimeMarching"]['time_init']
     time_max = params["TimeMarching"]['time_end']
@@ -236,6 +213,7 @@ def main(params):
                                         params['TimeMarching']['CFL'],
                                         field)
 
+        # todo: do something better for the output (different frequencies per output)
         if "IO" in params.keys():
             if not step % params["IO"]["frequency"]:
                 field.write_sol(step, time)
@@ -255,5 +233,4 @@ if __name__ == "__main__":
     print(path)
     input_file = toml.load(path[-1])
     print(input_file.keys())
-    # print(input_file)
     _ = main(input_file)

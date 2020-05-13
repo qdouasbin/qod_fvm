@@ -44,12 +44,14 @@ class BC_Inlet_UTY(BoundaryCondition):
         """
         Apply boundary conditions
     
+            ```
                ghost  BC  domain
             |-- q_0 --|-- q_1 --|
                       |<-- q_target
-    
+
             q_t = 0.5 * (q_0 + q_1)
             q_0 = 2 q_t - q_1
+            ```
         """
 
         if self.idx_cell_bc == 0:
@@ -79,12 +81,14 @@ class BC_Outlet_P(BoundaryCondition):
         """
         Apply boundary conditions
 
+            ```
                ghost  BC  domain
             |-- q_0 --|-- q_1 --|
                       |<-- q_target
 
             q_t = 0.5 * (q_0 + q_1)
             q_0 = 2 q_t - q_1
+            ```
 
         :param field: field object
         """
