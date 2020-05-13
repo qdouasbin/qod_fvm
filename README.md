@@ -13,9 +13,7 @@
  4. Input file: TOML format
  5. Fluid properties
     - gaseous
-    
     - calorically perfect gas
-    
     - non-viscous
     
 ## Theory
