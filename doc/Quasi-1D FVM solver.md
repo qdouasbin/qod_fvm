@@ -129,3 +129,53 @@ From this we have:
 $$
 \frac{\partial \mathbf{U}}{\partial t} = - \left[ \frac{\partial \mathbf{F}}{\partial x} + \mathbf{S} \right]
 $$
+
+# Boundary conditions
+
+## Inlet UTY
+
+This inlet forces the axial velocity, the temperature and the mixture fractions to be the target values at the right face of the ghost cell. The pressure is extrapolated from the neighboring cell and the density is computed from the temperature and the pressure. To do that, the gradient at the first cell of the domain is approximated via a first order forward Euler in space.
+
+### Imposing value at face
+
+The value at the ghost cell is computed to correct the error:
+$$
+q_f = \frac{q_0 + q_1}{2} \rightarrow q_0 = 2q_f - q_1
+$$
+Setting the face value $q_f$ to be the target value $q_t$, we have:
+$$
+q_0 = 2q_t - q_1
+$$
+
+
+For instance:
+
+```python
+def apply_BC(field):
+    """
+    Apply boundary conditions
+
+           ghost  BC  domain
+        |-- q_0 --|-- q_1 --|
+                  |<-- q_target
+
+        q_t = 0.5 * (q_0 + q_1)
+        q_0 = 2 q_t - q_1
+    :param field: Field object
+    :return: modified field object
+    """
+    left_ghost = field.lst_cell[0]
+    right_cell = field.lst_cell[1]
+    right_right_cell = field.lst_cell[2]
+    left_ghost.set_u(2. * bc_left_u - right_right_cell.get_u())
+    left_ghost.set_P(right_cell.get_P())
+    left_ghost.set_T(2. * bc_left_T - right_right_cell.get_T())
+    left_ghost.set_rho_from_TP()
+        
+	# update conservative variables
+    for _ghost in [left_ghost, right_ghost]:
+        _ghost.update_vec_from_var()
+
+    return field
+```
+
