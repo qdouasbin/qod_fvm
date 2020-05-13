@@ -18,9 +18,9 @@
     
     - non-viscous
     
-      ## Theory
-    
-      A theory guide is available at the following path `docs/source/theory/Quasi-1D FVM solver.md`
+## Theory
+
+A theory guide is available at the following path `docs/source/theory/Quasi-1D FVM solver.md`
 
 ## How to use it
 
