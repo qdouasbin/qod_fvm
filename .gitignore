@@ -11,3 +11,6 @@ make_video/*
 .idea/*
 docs/build
 qod_fvm/__pycache__/*.pyc
+qod_fvm/solution/*
+tests/__pycache__/*
+tests/check_steady_solution/__pycache__/*
