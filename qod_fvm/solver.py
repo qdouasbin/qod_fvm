@@ -75,6 +75,22 @@ def initialize_field(dom_1D, params_init, params_geom, params_fluid):
     def area_constant(cell, diam):
         return diam, 0.25 * np.pi * diam ** 2.
 
+
+    if params_geom["simple_geom_type"] == "constant_area":
+        for _idx, _cell in enumerate(dom_1D.lst_cell):
+            _cell.diam, _cell.area = area_constant(_cell, 1e-1)
+            _cell.compute_volume()
+
+    elif params_geom["simple_geom_type"] == "change_area":
+        for _idx, _cell in enumerate(dom_1D.lst_cell):
+            _cell.diam, _cell.area = area_x(_cell)
+            _cell.compute_volume()
+    else:
+        str_err = 'Only simple geometry options are: '
+        for item in _implemented_geom:
+            str_err += "\n\t%s" % item
+        raise NotImplementedError(str_err)
+
     if params_init["init_type"] == "Uniform":
         for _idx, _cell in enumerate(dom_1D.lst_cell):
             _cell.gamma = params_fluid["GAMMA"]
@@ -88,23 +104,7 @@ def initialize_field(dom_1D, params_init, params_geom, params_fluid):
         raise NotImplementedError("Only a uniform initial field "
                                   "is possible so far.")
 
-    if params_geom["simple_geom_type"] == "constant_area":
-        for _idx, _cell in enumerate(dom_1D.lst_cell):
-            _cell.diam, _cell.area = area_constant(_cell, 1e-1)
-            _cell.compute_volume()
-
-    elif params_geom["simple_geom_type"] == "change_section":
-        for _idx, _cell in enumerate(dom_1D.lst_cell):
-            _cell.diam, _cell.area = area_x(_cell)
-            _cell.compute_volume()
-    else:
-        str_err = 'Only simple geometry options are: '
-        for item in _implemented_geom:
-            str_err += "\n\t%s" % item
-        raise NotImplementedError(str_err)
-
     return dom_1D
-
 
 
 def time_marching(field, dt):
@@ -203,6 +203,8 @@ def main(params):
     if "IO" in params.keys():
         field.write_sol(0, time, params['IO'])
         field.write_sol_adim(0, time, params)
+        # field.write_output(0, time, params['IO'])
+        # field.plot_cons(params['IO'], iteration=0)
 
     for step in range(params["TimeMarching"]["n_steps_max"]):
         if time > time_max:
@@ -216,10 +218,10 @@ def main(params):
         # todo: do something better for the output (different frequencies per output)
         if "IO" in params.keys():
             if not step % params["IO"]["frequency"]:
-                field.write_sol(step, time)
+                field.write_sol(step, time, params['IO'])
                 field.write_sol_adim(step, time, params)
-            # field.write_output(step, time)
-            # field.plot_cons()
+                # field.write_output(step, time, params['IO'])
+                # field.plot_cons(params['IO'], iteration=step)
 
     print("Done")
 

@@ -1,19 +1,17 @@
-# Example input file for the Quasi-1D Finite Volume solver
-
 [TimeMarching]
-CFL = 0.8
+CFL = 0.1
 time_init = 0.0
-n_steps_max = 30000
+n_steps_max = 500
 time_end = 30.0
 
 [Geometry]
 simple_geom = true
-simple_geom_type = "constant_area"
+simple_geom_type = "change_area"
 
 [Mesh]
 x_min = -1
 x_max = 2
-n_cells = 5
+n_cells = 100
 
 [Numerics]
 stencil = 1
@@ -32,8 +30,8 @@ init_P = 101325.0
     [BoundaryConditions.left]
     type = "inlet_UTY"
     method = "flux"
-    T = 650
-    u = 4.5
+    T = 300.0
+    u = 3.0
     idx_cell = 0
 
     [BoundaryConditions.right]
@@ -42,6 +40,6 @@ init_P = 101325.0
     P = 101325
     idx_cell = -1
 
-#[IO]
-#frequency = 500
-#directory = 'solution'
+[IO]
+frequency = 10
+directory = 'my_solutions'

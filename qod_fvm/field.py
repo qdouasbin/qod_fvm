@@ -12,7 +12,7 @@ utils.plt_style()
 
 CHECK_TIME_STEP = 0
 TEST_WRITE_FUNCTION = 0
-SHOW = 1
+SHOW = 0
 
 
 class Field:
@@ -123,16 +123,16 @@ class Field:
         return self.get_u() / self.get_sos()
 
     def add_source_term_p(self):
+        raise NotImplementedError("This source term should not be used. the source terms are in the fluxes")
         x_pos = self.get_xi()
         pres = self.get_P()
         grad_p = np.gradient(pres, x_pos)
 
         for _idx_cell, _cell in enumerate(self.lst_cell):
             _cell.s_cons[_cell.idx_momentum] = _cell.area * grad_p[_idx_cell]
-            # _cell.s_cons[_cell.idx_momentum] = grad_p[_idx_cell]
 
     def add_source_term_energy(self):
-        # _idx_momentum = self.lst_cell[0].idx_momentum
+        raise NotImplementedError("This source term should not be used. the source terms are in the fluxes")
         x_pos = self.get_xi()
         pres = self.get_P()
         area = self.get_area()
@@ -219,7 +219,6 @@ class Field:
     def get_flux_cc_matrix(self):
         """cell centered fluxes"""
         n_cells = len(self.lst_cell)
-        # n_cons = self.lst_cell[0].w_cons.flatten().shape
         n_cons = self.lst_cell[0].n_transport_eq
         f_cons_mat = np.zeros((n_cells, n_cons))
         # print(f_cons_mat.shape)
@@ -232,17 +231,15 @@ class Field:
     def get_source_terms_matrix(self):
         """cell centered fluxes"""
         n_cells = len(self.lst_cell)
-        # n_cons = self.lst_cell[0].w_cons.flatten().shape
         n_cons = self.lst_cell[0].n_transport_eq
         s_cons_mat = np.zeros((n_cells, n_cons))
-        # print(s_cons_mat.shape)
 
         for _idx, _cell in enumerate(self.lst_cell):
             s_cons_mat[_idx, :] = _cell.s_cons
 
         return s_cons_mat
 
-    def write_output(self, iteration, time):
+    def write_output(self, iteration, time, params_IO):
         self.update_var_from_vec()
         dict_out = {}
         dict_out['x'] = self.get_xi()
@@ -261,8 +258,12 @@ class Field:
         dict_out['iteration'] = iteration * np.ones(len(self.lst_cell))
         dict_out['time'] = time * np.ones(len(self.lst_cell))
 
+        path = params_IO['directory']
+        sol_name = os.path.join(path, "solution_%08d" % iteration)
+
+        print("\t--> Saving %s.csv" % sol_name)
         df = pd.DataFrame.from_dict(dict_out)
-        df.to_csv("solut/solution_%08d.csv" % iteration)
+        df.to_csv("%s.csv" % sol_name)
 
         fig, axes = plt.subplots(2, 3, sharex=True, figsize=(9, 4.5))
         plt.suptitle('Iteration %s\t' % iteration + r' $t$ = %3.3e' % time)
@@ -287,14 +288,14 @@ class Field:
         for idx in range(3):
             axes[1, idx].set_xlabel("x [m]")
 
-        utils.savefig_solution(inp.output_dir, 'solut_%08d' % iteration)
+        utils.savefig_solution('%s.png' % sol_name)
 
         if SHOW:
             plt.show()
 
         plt.close()
 
-    def plot_cons(self, iteration=None):
+    def plot_cons(self, params_IO, iteration=None):
         _cell = self.lst_cell[0]
         x_pos = self.get_xi()
 
@@ -349,6 +350,10 @@ class Field:
 
         if SHOW:
             plt.show()
+
+        path = params_IO['directory']
+        sol_name = os.path.join(path, "cons_solution_%08d" % iteration)
+        utils.savefig_solution('%s.png' % sol_name)
 
         plt.close()
 

@@ -8,8 +8,8 @@ def plt_style():
     Set personal matplotlib settings
     """
     plt.style.use('seaborn')
-    # lst_styles = glob.glob('*/*mplstyle')
-    # plt.style.use(lst_styles[-1])
+    lst_styles = glob.glob('*/*mplstyle')
+    plt.style.use(lst_styles[-1])
     plt.style.use("tableau-colorblind10")
 
 
@@ -27,13 +27,15 @@ def savefig_check(name, path='None'):
     plt.savefig(os.path.join(path, "%s.png" % name))
 
 
-def savefig_solution(dir, name):
+def savefig_solution(name):
     """
     Save a matplotlib figure as a png ain this path
     :param dir: path
     :param name: figure name
     """
-    plt.savefig("%s/%s.png" % (dir, name), dpi=100)
+    print("\t--> Saving %s" % name)
+    plt.savefig(name, bbox_inches='tight', pad_inches=0.01, dpi=200)
+
 
 
 def clean_directories(params_IO):
@@ -61,7 +63,6 @@ def clean_directories(params_IO):
                 os.remove(my_file)
             except:
                 print("Error while deleting file : ", my_file)
-
 
 
 def plot_prim_var_field(dom_1D, fig_name):
@@ -98,4 +99,3 @@ def plot_prim_var_field(dom_1D, fig_name):
     plt.xlabel(r'x [m]')
     plt.savefig("Figures/checks/%s.png" % fig_name)
     plt.show()
-
