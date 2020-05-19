@@ -1,11 +1,15 @@
 nose
 sphinx
 pytest
-toml~=0.10.0
-lxml~=4.5.0
+pytest-sugar
+pytest-xdist
 
-numpy~=1.18.4
-matplotlib~=3.2.1
-pandas~=1.0.3
-h5py~=2.10.0
-setuptools~=46.2.0
+toml
+lxml
+
+numpy
+matplotlib
+pandas
+h5py
+setuptools
+

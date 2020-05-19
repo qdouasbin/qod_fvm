@@ -50,7 +50,7 @@ class TestSteadyStateSolution(unittest.TestCase):
 
         if MAKE_REFERENCE:
             with open(r"check_steady_solution/solution_change_area.pickle", "wb") as _file:
-                pickle.dump(field_cst, _file)
+                pickle.dump(field_sol, _file)
         else:
             with open(r"check_steady_solution/solution_change_area.pickle", "rb") as _file:
                 field_ref = pickle.load(_file)

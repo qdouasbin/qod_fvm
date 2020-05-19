@@ -73,3 +73,21 @@ init_P = 101325.0
 frequency = 500
 directory = 'solution'
 ```
+
+-------
+
+# Unit tests and non-regression tests
+
+To run the tests:
+
+```bash
+cd tests
+pytest
+```
+
+To run the tests on more than 1 CPU, the `pytest-xdist` library allows to distribute tests across several cores:
+
+```bash
+cd tests
+pytest -n 4
+```
