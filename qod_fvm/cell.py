@@ -263,8 +263,8 @@ class Cell():
         """
         self.f_cons[self.idx_mass] = self.rho_u
         self.f_cons[self.idx_momentum] = self.rho * self.u ** 2.# + self.pres
-        # self.f_cons[self.idx_energy] = self.u * (self.rho_E + self.pres)
-        self.f_cons[self.idx_energy] = self.u * (self.rho_E)
+        self.f_cons[self.idx_energy] = self.u * (self.rho_E + self.pres)
+        # self.f_cons[self.idx_energy] = self.u * (self.rho_E)
         # self.f_cons *= self.area
 
     def prim_to_cons(self):

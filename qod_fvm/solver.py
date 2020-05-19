@@ -128,7 +128,7 @@ def time_marching(field, dt):
     # ----- Source term -----
     # Using the fluxes instead
     field.add_source_term_p()
-    field.add_source_term_energy()
+    # field.add_source_term_energy()
 
     # ----- Advection -----
 
@@ -197,10 +197,11 @@ def time_marching(field, dt):
     return field
 
 
-def advance_time_step(step, time, CFL, field):
+def advance_time_step(step, time, CFL, field, verbose):
     dt = field.compute_time_step(CFL, step)
 
-    print(" > step %06d   time = %3.3e   dt = %3.3e" % (step, time, dt))
+    if verbose:
+        print(" > step %06d   time = %3.3e   dt = %3.3e" % (step, time, dt))
 
     field = time_marching(field, dt)
 
@@ -210,7 +211,14 @@ def advance_time_step(step, time, CFL, field):
 
 
 def main(params):
-    print("Start")
+
+    verbose = 1
+    if 'Options' in params.keys():
+        if 'verbose' in params['Options'].keys():
+            verbose = params['Options']['verbose']
+
+    if verbose:
+        print("Start")
 
     if "IO" in params.keys():
         utils.clean_directories(params['IO'])
@@ -228,7 +236,7 @@ def main(params):
     if CHECK_1D_INIT:
         utils.plot_prim_var_field(field, 'init_fields')
 
-    bc.init_BC(field, params['BoundaryConditions'])
+    bc.init_BC(field, params['BoundaryConditions'], verbose)
 
     field.update_vec_from_var()
 
@@ -246,9 +254,11 @@ def main(params):
             break
 
         step += 1
-        time, field = advance_time_step(step, time,
+        time, field = advance_time_step(step,
+                                        time,
                                         params['TimeMarching']['CFL'],
-                                        field)
+                                        field,
+                                        verbose)
 
         # todo: do something better for the output (different frequencies per output)
         if "IO" in params.keys():
@@ -258,7 +268,8 @@ def main(params):
                 # field.write_output(step, time, params['IO'])
                 # field.plot_cons(params['IO'], iteration=step)
 
-    print("Done")
+    if verbose:
+        print("Done")
 
     return params, field
 

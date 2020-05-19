@@ -6,7 +6,7 @@ import pandas as pd
 
 from qod_fvm.np_to_xmf import NpArray2Xmf
 from qod_fvm import utils
-from tests.check_steady_solution import input_1d_solver as inp
+# from tests.check_steady_solution import input_1d_solver as inp
 
 utils.plt_style()
 

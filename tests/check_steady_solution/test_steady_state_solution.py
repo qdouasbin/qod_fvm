@@ -1,63 +1,64 @@
 # -*- coding: utf-8 -*-
 
-from tests.context import qod_fvm
-
 import unittest
-
-
-class InputParamsRun():
-    def __init__(self):
-        # Domain
-        self.x_min = -1
-        self.x_max = 2
-        self.n_cell = 5
-
-        # Time
-        self.t_init = 0.
-        self.n_steps = 500 * 60
-        self.CFL = 0.8
-
-        # Simple geometry
-        self.simple_geom = True
-        self.simple_geom_type = "constant_area"
-
-        # Numercial scheme
-        self.stencil_left = 1
-        self.stencil_right = 1
-
-        # fluid
-        self.GAMMA = 1.4
-        self.R_GAS = 290
-
-        # init
-        self.init_u = 3
-        self.init_T = 300
-        self.init_P = 101325
-
-        # BC
-        self.bc_left_T = 2 * self.init_T
-        self.bc_left_u = 1.5 * self.init_u
-
-        # BC right
-        self.bc_right_P = self.init_P
-
-        # Solution output
-        self.output_freq = 500 * 60
-        self.output_dir = ''
+import pickle
+import toml
+import glob
+from qod_fvm import solver
+import numpy as np
 
 
 class TestSteadyStateSolution(unittest.TestCase):
     """Advanced test cases."""
 
-    # def test_thoughts(self):
+    # def test_example(self):
+    #     # do assert here
     #     pass
-    # self.assertIsNone(qod_fvm.hmm())
 
-    def test_check_steady_state_solution(self):
-        inp = InputParamsRun()
-        from qod_fvm import solver
-        solver.main()
-        assert (1 == 1)
+    def test_check_steady_state_cst_area(self):
+        """
+        Constant area, 3 cells, final solution should be uniform
+        """
+        print(" > test steady state with cst area")
+        input_file = toml.load('check_steady_solution/steady_state_cst_area.toml')
+        params, field_cst = solver.main(input_file)
+
+        _arr = np.ones_like(field_cst.get_T())
+
+        left_bc = input_file['BoundaryConditions']['left']
+        right_bc = input_file['BoundaryConditions']['right']
+
+        assert (left_bc['P'] == right_bc['P'])
+
+        _u_target = left_bc['u']
+        _T_target = left_bc['T']
+        _P_target = right_bc['P']
+
+        assert (np.allclose(field_cst.get_u(), _u_target * np.ones_like(_arr)))
+        assert (np.allclose(field_cst.get_T(), _T_target * np.ones_like(_arr)))
+        assert (np.allclose(field_cst.get_P(), _P_target * np.ones_like(_arr)))
+
+    def test_check_steady_state_change_area(self):
+        """
+        Change area and compare to reference solution
+        """
+        MAKE_REFERENCE = False
+
+        print(" > test steady state with change area")
+        input_file = toml.load('check_steady_solution/steady_state_change_area.toml')
+        params, field_sol = solver.main(input_file)
+
+        if MAKE_REFERENCE:
+            with open(r"check_steady_solution/solution_change_area.pickle", "wb") as _file:
+                pickle.dump(field_cst, _file)
+        else:
+            with open(r"check_steady_solution/solution_change_area.pickle", "rb") as _file:
+                field_ref = pickle.load(_file)
+
+            assert(np.allclose(field_sol.get_u(), field_ref.get_u()))
+            assert(np.allclose(field_sol.get_T(), field_ref.get_T()))
+            assert(np.allclose(field_sol.get_P(), field_ref.get_P()))
+            assert(np.allclose(field_sol.get_sos(), field_ref.get_sos()))
 
 
 if __name__ == '__main__':
