@@ -20,6 +20,9 @@ class Field:
     def __init__(self, list_of_cell):
         self.lst_cell = list_of_cell
         self.lst_BC = []
+        self.residuals_adv = np.zeros_like(self.get_flux_cc_matrix())
+        self.residuals_diff = np.zeros_like(self.residuals_adv)
+        self.residuals_src_terms = np.zeros_like(self.residuals_adv)
 
     def get_xi(self):
         out = []
@@ -45,14 +48,14 @@ class Field:
     def get_T(self):
         out = []
         for _cell in self.lst_cell:
-            out.append(_cell.temp)
+            out.append(_cell.get_T())
 
         return np.array(out)
 
     def get_P(self):
         out = []
         for _cell in self.lst_cell:
-            out.append(_cell.pres)
+            out.append(_cell.get_P())
 
         return np.array(out)
 
@@ -66,14 +69,14 @@ class Field:
     def get_u(self):
         out = []
         for _cell in self.lst_cell:
-            out.append(_cell.u)
+            out.append(_cell.get_u())
 
         return np.array(out)
 
     def get_rho_u(self):
         out = []
         for _cell in self.lst_cell:
-            out.append(_cell.rho_u)
+            out.append(_cell.get_rhou())
         return np.array(out)
 
     def get_rho_e(self):
@@ -109,10 +112,6 @@ class Field:
         Get speed of sound
         :return: sos
         """
-        # _gamma = self.get_gamma()
-        # _r = self.get_r_gas()
-        # _T = self.get_T()
-        # return np.sqrt(_gamma * _r * _T)
         out = []
         for _cell in self.lst_cell:
             out.append(_cell.get_sos())
@@ -123,16 +122,17 @@ class Field:
         return self.get_u() / self.get_sos()
 
     def add_source_term_p(self):
-        raise NotImplementedError("This source term should not be used. the source terms are in the fluxes")
+        # raise NotImplementedError("This source term should not be used. the source terms are in the fluxes")
         x_pos = self.get_xi()
         pres = self.get_P()
         grad_p = np.gradient(pres, x_pos)
 
         for _idx_cell, _cell in enumerate(self.lst_cell):
+            # _cell.s_cons[_cell.idx_momentum] = _cell.area * grad_p[_idx_cell]
             _cell.s_cons[_cell.idx_momentum] = _cell.area * grad_p[_idx_cell]
 
     def add_source_term_energy(self):
-        raise NotImplementedError("This source term should not be used. the source terms are in the fluxes")
+        # raise NotImplementedError("This source term should not be used. the source terms are in the fluxes")
         x_pos = self.get_xi()
         pres = self.get_P()
         area = self.get_area()
@@ -180,6 +180,8 @@ class Field:
             plt.close()
 
         dt_min = np.amin(local_dt)
+
+        # Check for NaN
         assert (dt_min == dt_min)
 
         return dt_min
@@ -193,23 +195,17 @@ class Field:
             _cell.update_var_from_vec()
 
     def prim_to_cons(self):
-        # rho --> no need (both prim and cons)
-        # rhoE
         for _cell in self.lst_cell:
             _cell.prim_to_cons()
 
     def cons_to_prim(self):
-        # rho --> no need (both prim and cons)
-        # rhoE
         for _cell in self.lst_cell:
             _cell.cons_to_prim()
 
     def get_cons_matrix(self):
         n_cells = len(self.lst_cell)
-        # n_cons = self.lst_cell[0].w_cons.flatten().shape
         n_cons = self.lst_cell[0].n_transport_eq
         w_cons_mat = np.zeros((n_cells, n_cons))
-        # print(w_cons_mat.shape)
 
         for _idx, _cell in enumerate(self.lst_cell):
             w_cons_mat[_idx, :] = _cell.w_cons
@@ -221,7 +217,6 @@ class Field:
         n_cells = len(self.lst_cell)
         n_cons = self.lst_cell[0].n_transport_eq
         f_cons_mat = np.zeros((n_cells, n_cons))
-        # print(f_cons_mat.shape)
 
         for _idx, _cell in enumerate(self.lst_cell):
             f_cons_mat[_idx, :] = _cell.f_cons
@@ -448,6 +443,7 @@ class Field:
         tmp = self.get_area()
         output_fields['A'] = tmp
 
+        # Fluxes field
         fluxes = self.get_flux_cc_matrix()
         flux_mass = fluxes[:, _cell.idx_mass]
         flux_momentum = fluxes[:, _cell.idx_momentum]
@@ -456,6 +452,7 @@ class Field:
         output_fields['flux_momentum'] = flux_momentum
         output_fields['flux_energy'] = flux_energy
 
+        # Sources field
         sources = self.get_source_terms_matrix()
         sources_mass = sources[:, _cell.idx_mass]
         sources_momentum = sources[:, _cell.idx_momentum]
@@ -463,6 +460,15 @@ class Field:
         output_fields['sources_mass'] = sources_mass
         output_fields['sources_momentum'] = sources_momentum
         output_fields['sources_energy'] = sources_energy
+
+        # Residuals of advection fluxes
+        res_adv_flux = self.residuals_adv
+        res_adv_flux_mass = res_adv_flux[:, _cell.idx_mass]
+        res_adv_flux_momentum = res_adv_flux[:, _cell.idx_momentum]
+        res_adv_flux_energy = res_adv_flux[:, _cell.idx_energy]
+        output_fields['res_flux_mass'] = res_adv_flux_mass
+        output_fields['res_flux_momentum'] = res_adv_flux_momentum
+        output_fields['res_flux_energy'] = res_adv_flux_energy
 
         for key, item in output_fields.items():
             xmf_out.add_field(output_fields[key] * Z, key)
@@ -568,8 +574,8 @@ class Field:
     def apply_bc(self):
         """
         Apply the boudnary conditions.
-        Each item of the list is a boundary condition class an has its own method
-        to apply the values at the ghost cells
+        Each item of the list is a boundary condition class and has its own method
+        to apply the values at the ghost cells.
         """
         for my_bc in self.lst_BC:
             my_bc.apply_bc(self)

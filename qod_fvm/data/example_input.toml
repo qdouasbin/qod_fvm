@@ -1,7 +1,7 @@
 [TimeMarching]
-CFL = 0.1
+CFL = 0.7
 time_init = 0.0
-n_steps_max = 500
+n_steps_max = 1000
 time_end = 30.0
 
 [Geometry]
@@ -11,10 +11,12 @@ simple_geom_type = "change_area"
 [Mesh]
 x_min = -1
 x_max = 2
-n_cells = 100
+n_cells = 1000
 
 [Numerics]
 stencil = 1
+#solver = "Quasi-1D"
+solver = "1D"
 
 [Fluid]
 GAMMA = 1.4
@@ -27,19 +29,19 @@ init_T = 300.0
 init_P = 101325.0
 
 [BoundaryConditions]
-    [BoundaryConditions.left]
-    type = "inlet_UTY"
-    method = "flux"
+    type = "inlet_UTYP"
+    method = "Dirichlet"
     T = 300.0
-    u = 3.0
+    u = 5.0
+    P = 101325.0
     idx_cell = 0
 
     [BoundaryConditions.right]
     type = "outlet_P"
     method = "Dirichlet"
-    P = 101325
+    P = 101325.0
     idx_cell = -1
 
 [IO]
-frequency = 10
+frequency = 1
 directory = 'my_solutions'

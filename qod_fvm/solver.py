@@ -22,21 +22,24 @@ Solving a toy problem with a 1D finite volume solver:
 import glob
 
 import numpy as np
-import matplotlib.pyplot as plt
 
-from qod_fvm import FluxReconstruction as FR, utils
+from qod_fvm import FluxReconstruction as fluxrec
 from qod_fvm import bc
 from qod_fvm import mesh
+from qod_fvm import utils
 
 utils.plt_style()
 
 CHECK_1D_INIT = 0
 
+SOLVER = "1D"
+# SOLVER = "QUASI-1D"
+
 
 def initialize_field(dom_1D, params_init, params_geom, params_fluid):
     """
     Initialize fields. Both fluid properties and geometries
-    :param dom_1D: a Field object to be intialize (the cells inside)
+    :param dom_1D: a Field object to be intialized (the cells inside)
     :param params_init: input params for init (section of TOML file)
     :return: initialize domain (Field onject)
     """
@@ -55,7 +58,7 @@ def initialize_field(dom_1D, params_init, params_geom, params_fluid):
         x_loc = cell.x_i
         length_area_change = 0.95
         d_in = 1e-1
-        d_out = 2 * d_in
+        d_out = 5 * d_in
         x_center_slope = 0.5
         x_end_slope = x_center_slope + length_area_change / 2.
         x_beg_slope = x_center_slope - length_area_change / 2.
@@ -124,6 +127,8 @@ def time_marching(field, dt):
 
     # ----- Source term -----
     # Using the fluxes instead
+    field.add_source_term_p()
+    field.add_source_term_energy()
 
     # ----- Advection -----
 
@@ -132,9 +137,10 @@ def time_marching(field, dt):
     stencil_cv_it = enumerate(zip(field.lst_cell[0:-1],
                                   field.lst_cell[1:]))
 
+    fluxes_adv = field.get_flux_cc_matrix()
     # reconstruct inter_cell fluxes
     for _idx, (cell_l, cell_r) in stencil_cv_it:
-        inter_cell_flux = FR.get_intercell_flux(cell_l, cell_r, dt)
+        inter_cell_flux = fluxrec.get_intercell_flux(cell_l, cell_r, dt)
         cell_l.flux_face_r = inter_cell_flux * cell_l.normal_r
         cell_r.flux_face_l = inter_cell_flux * cell_r.normal_l
 
@@ -142,17 +148,48 @@ def time_marching(field, dt):
 
     # here we go for cell inside the domain only (1, 2) --> (N-2, N-1)
     stencil_cv_it = enumerate(zip(field.lst_cell[1:-1], field.lst_cell[2:]))
-    for _idx, (cell_l, cell_r) in stencil_cv_it:
-        flux_adv_diff = cell_r.flux_face_l * cell_r.area
-        flux_adv_diff -= cell_l.flux_face_l * cell_l.area
 
-        source_terms = cell_l.s_cons
+    residuals_adv = np.zeros_like(field.get_flux_cc_matrix())
+    residuals_src = np.zeros_like(residuals_adv)
 
-        # add Euler fluxes
-        cell_l.w_cons -= (dt / cell_l.dx) * flux_adv_diff
+    if SOLVER == "QUASI-1D":
+        for _idx, (cell_l, cell_r) in stencil_cv_it:
+            flux_adv = 1.0 * (cell_l.flux_face_l + cell_l.flux_face_r)
 
-        # add source terms
-        cell_l.w_cons -= dt * source_terms
+            source_terms = cell_l.s_cons
+
+            # add Euler fluxes
+            cell_l.w_cons -= (dt / cell_l.dx) * flux_adv
+
+            # add source terms
+            cell_l.w_cons -= dt * source_terms
+
+            residuals_adv[_idx, :] = flux_adv / cell_l.dx
+            residuals_src[_idx, :] = source_terms
+
+    elif SOLVER == "1D":
+        for _idx, (cell_l, cell_r) in stencil_cv_it:
+            _area = min(cell_l.area, cell_r.area)
+            flux_adv = cell_l.flux_face_r + cell_l.flux_face_l
+            flux_adv *= _area
+
+            flux_adv = cell_l.flux_face_r * cell_r.area + cell_l.flux_face_l * cell_l.area
+
+            source_terms = cell_l.s_cons
+
+            # add Euler fluxes
+            cell_l.w_cons -= (dt / cell_l.vol) * flux_adv
+
+            # add source terms
+            cell_l.w_cons -= dt * source_terms
+
+            residuals_adv[_idx, :] = flux_adv / cell_l.dx
+            residuals_src[_idx, :] = source_terms
+    else:
+        raise NotImplementedError("This solver is not implemented.")
+
+    field.residuals_adv = residuals_adv
+    field.residuals_src_terms = residuals_src
 
     # update primitive
     field.update_var_from_vec()
@@ -163,9 +200,7 @@ def time_marching(field, dt):
 def advance_time_step(step, time, CFL, field):
     dt = field.compute_time_step(CFL, step)
 
-    _ = field.get_sos()
-
-    print(" > Step %06d\ttime = %3.3e\tdt = %3.3e" % (step, time, dt))
+    print(" > step %06d   time = %3.3e   dt = %3.3e" % (step, time, dt))
 
     field = time_marching(field, dt)
 

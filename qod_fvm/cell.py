@@ -38,8 +38,8 @@ class Cell():
         self.vol = 0.
         # Do we have trapezoidal elements?
 
-        self.normal_l = 1.
-        self.normal_r = -1
+        self.normal_l = -1.
+        self.normal_r = 1.
 
         # variables
         self.pres = 0.
@@ -119,21 +119,29 @@ class Cell():
         """
         return self.u
 
-    def set_T(self, T):
+    def get_rhou(self):
+        """
+        Get rhou
+
+        :return: rho [kg.m-2.s-1]
+        """
+        return self.rho_u
+
+    def set_T(self, temperature):
         """
         Set the temperature
 
-        :param T: temperature [K]
+        :param temperature: temperature [K]
 
         """
-        self.temp = T
+        self.temp = temperature
 
-    def set_P(self, P):
+    def set_P(self, pressure):
         """
         Set the pressure
-        :param P: pressure [Pa]
+        :param pressure: pressure [Pa]
         """
-        self.pres = P
+        self.pres = pressure
 
     def set_u(self, u):
         """
@@ -220,7 +228,13 @@ class Cell():
         :return: local speed of sound
         """
         sos = np.sqrt(self.gamma * self.r_gas * self.temp)
-        assert (sos > 0)
+        if self.temp < 0.:
+            print("Problem, negative speed of sound here:")
+            output_fields = self.get_outfield()
+            output_fields['x'] = self.x_i
+            for key, value in output_fields.items():
+                print("\t %s\t:\t%e" % (key, value))
+            assert (sos > 0)
         return sos
 
     def update_cons_vec(self):
@@ -236,7 +250,7 @@ class Cell():
         self.w_cons[self.idx_mass] = self.rho
         self.w_cons[self.idx_momentum] = self.rho_u
         self.w_cons[self.idx_energy] = self.rho_E
-        self.w_cons *= self.area
+        # self.w_cons *= self.area
 
     def update_flux_vec(self):
         """
@@ -247,10 +261,11 @@ class Cell():
             F[1] = A \\rho u^2 + p
             F[2] = A u (\\rho E + p)
         """
-        self.f_cons[self.idx_mass] = self.rho * self.u
-        self.f_cons[self.idx_momentum] = self.rho * self.u ** 2. + self.pres
-        self.f_cons[self.idx_energy] = self.u * (self.rho * self.e_tot + self.pres)
-        self.f_cons *= self.area
+        self.f_cons[self.idx_mass] = self.rho_u
+        self.f_cons[self.idx_momentum] = self.rho * self.u ** 2.# + self.pres
+        # self.f_cons[self.idx_energy] = self.u * (self.rho_E + self.pres)
+        self.f_cons[self.idx_energy] = self.u * (self.rho_E)
+        # self.f_cons *= self.area
 
     def prim_to_cons(self):
         """
@@ -271,21 +286,28 @@ class Cell():
     def cons_to_prim(self):
         """
         Retrieve primitive variables from conservative vector
+
+
+        .. math::
+            E = e_i + \\frac{u^2}{2} = h - \\frac{p}{\\rho} - \\frac{u^2}{2} = \\frac{1}{\\gamma - 1} \\frac{p}{\\rho} + \\frac{u^2}{2}
+
+        .. math::
+            p = \\rho (\\gamma - 1) \\left( E + \\frac{u^2}{2} \\right)
+
+
         """
         # verify this
         # mass, ok
-        self.rho = self.w_cons[0] / self.area
+        self.rho = self.w_cons[0] #/ self.area
 
         # momentum
-        self.u = self.w_cons[1] / self.rho / self.area
+        self.u = self.w_cons[1] / self.rho #/ self.area
 
         # energy
-        self.e_tot = self.w_cons[2] / (self.area * self.rho)
+        self.e_tot = self.w_cons[2] / self.rho # / self.area
 
         # pressure
-        # todo: verify this
-        self.pres = (self.gamma - 1.) * self.rho * \
-                    (self.e_tot - 0.5 * self.u ** 2)
+        self.pres = (self.gamma - 1.) * self.rho * (self.e_tot - 0.5 * self.u ** 2.)
 
         #  Temperature
         self.set_T_from_RP()
@@ -307,3 +329,38 @@ class Cell():
         Converts conservative variables to primitives
         """
         self.cons_to_prim()
+
+
+    def get_outfield(self):
+        output_fields = {}
+        tmp = self.get_u()
+        output_fields['vel-x'] = tmp
+
+        tmp = self.gamma
+        output_fields['gamma'] = tmp
+
+        tmp = self.r_gas
+        output_fields['R_GAS'] = tmp
+
+        tmp = self.rho_E
+        output_fields['rhoE'] = tmp
+
+        tmp = self.rho
+        output_fields['rho'] = tmp
+
+        tmp = self.pres
+        output_fields['P'] = tmp
+
+        tmp = self.temp
+        output_fields['T'] = tmp
+
+        tmp = self.rho_u
+        output_fields['rhou'] = tmp
+
+        tmp = self.dx
+        output_fields['dx'] = tmp
+
+        output_fields['A'] = tmp
+        tmp = self.area
+
+        return output_fields
