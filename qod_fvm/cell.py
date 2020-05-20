@@ -264,9 +264,9 @@ class Cell():
         Fill the vector of fluxes.
 
         .. math::
-            F[0] = A \\rho u
-            F[1] = A \\rho u^2 + p
-            F[2] = A u (\\rho E + p)
+            F[0] = \\rho u
+            F[1] = \\rho u^2 + p
+            F[2] = u (\\rho E + p)
         """
         self.f_cons[self.idx_mass] = self.rho_u
         self.f_cons[self.idx_momentum] = self.rho * self.u ** 2.# + self.pres

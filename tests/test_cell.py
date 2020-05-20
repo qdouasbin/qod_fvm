@@ -158,5 +158,46 @@ class BasicTestSuite(unittest.TestCase):
         assert(_cell.w_cons[1] == _tmp_rhou)
         assert(_cell.w_cons[2] == _tmp_rhoE)
 
+
+    def test_update_cons_vec(self):
+        _cell = cell.Cell()
+        _tmp_rho = np.random.rand()
+        _tmp_u = np.random.rand()
+        _tmp_rhoE = np.random.rand()
+        _tmp_p = np.random.rand()
+        _cell.rho = _tmp_rho
+        _cell.u = _tmp_u
+        _cell.rho_u = _tmp_rho * _tmp_u
+        _cell.pres = _tmp_p
+        _cell.rho_E = _tmp_rhoE
+        _cell.update_flux_vec()
+
+        assert(_cell.f_cons[0] == _tmp_rho * _tmp_u)
+        assert(_cell.f_cons[1] == _tmp_rho * _tmp_u**2.)
+        assert(_cell.f_cons[2] == _tmp_u * (_tmp_rhoE + _tmp_p))
+
+
+    def test_prim_to_cons(self):
+        _cell = cell.Cell()
+        _tmp_r_gas = 290.
+        _tmp_gamma = 1.4
+        _tmp_rho = np.random.rand()
+        _tmp_u = np.random.rand()
+        _tmp_T = np.random.rand()
+        _tmp_p = np.random.rand()
+        _tmp_rho = _tmp_p / (_tmp_r_gas * _tmp_T)
+        _cell.rho = _tmp_rho
+        _cell.u = _tmp_u
+        _cell.pres = _tmp_p
+        _cell.temp = _tmp_T
+        _cell.r_gas = _tmp_r_gas
+        _cell.gamma = _tmp_gamma
+
+        _cell.prim_to_cons()
+
+        assert(_cell.rho == _tmp_rho)
+        assert(_cell.rho_u == _tmp_rho * _tmp_u)
+        assert(_cell.rho_E == _tmp_rho * (_cell.get_cp() * _tmp_T - (_tmp_p / _tmp_rho) + 0.5 * _tmp_u**2.))
+
 if __name__ == '__main__':
     unittest.main()
