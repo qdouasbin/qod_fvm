@@ -151,11 +151,19 @@ class Cell():
         """
         self.u = u
 
-    def set_rho_from_TP(self):
+    def set_rho_from_TP(self, temp=None, pres=None):
         """
         Set the density [kg/m^3] from the temperature [K] and pressure [Pa] from the ideal gas law.
         """
-        self.rho = self.pres / (self.r_gas * self.temp)
+        if not temp:
+            temp = self.temp
+        else:
+            self.temp = temp
+        if not pres:
+            pres = self.pres
+        else:
+            self.pres = pres
+        self.rho = pres / (self.r_gas * temp)
 
     def set_T_from_RP(self):
         """
@@ -242,15 +250,14 @@ class Cell():
         Fill the vector of conservative variables:
 
         .. math::
-            U[0] = A \\rho
-            U[1] = A \\rho u
-            U[2] = A \\rho E
+            U[0] =  \\rho
+            U[1] =  \\rho u
+            U[2] =  \\rho E
 
         """
         self.w_cons[self.idx_mass] = self.rho
         self.w_cons[self.idx_momentum] = self.rho_u
         self.w_cons[self.idx_energy] = self.rho_E
-        # self.w_cons *= self.area
 
     def update_flux_vec(self):
         """
