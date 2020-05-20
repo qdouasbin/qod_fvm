@@ -8,8 +8,16 @@ def plt_style():
     Set personal matplotlib settings
     """
     plt.style.use('seaborn')
-    # lst_styles = glob.glob('*/*mplstyle')
-    # plt.style.use(lst_styles[-1])
+    lst_styles = []
+    for my_file in  glob.glob('../*/*/my_style.mplstyle'):
+        lst_styles.append(my_file)
+    for my_file in  glob.glob('../*/my_style.mplstyle'):
+        lst_styles.append(my_file)
+    for my_file in  glob.glob('../my_style.mplstyle'):
+        lst_styles.append(my_file)
+
+    print(lst_styles)
+    plt.style.use(lst_styles[-1])
     plt.style.use("tableau-colorblind10")
 
 

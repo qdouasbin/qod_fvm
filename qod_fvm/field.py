@@ -6,7 +6,6 @@ import pandas as pd
 
 from qod_fvm.np_to_xmf import NpArray2Xmf
 from qod_fvm import utils
-# from tests.check_steady_solution import input_1d_solver as inp
 
 utils.plt_style()
 
@@ -122,17 +121,15 @@ class Field:
         return self.get_u() / self.get_sos()
 
     def add_source_term_p(self):
-        # raise NotImplementedError("This source term should not be used. the source terms are in the fluxes")
         x_pos = self.get_xi()
         pres = self.get_P()
         grad_p = np.gradient(pres, x_pos)
 
         for _idx_cell, _cell in enumerate(self.lst_cell):
-            # _cell.s_cons[_cell.idx_momentum] = _cell.area * grad_p[_idx_cell]
             _cell.s_cons[_cell.idx_momentum] = _cell.area * grad_p[_idx_cell]
 
     def add_source_term_energy(self):
-        # raise NotImplementedError("This source term should not be used. the source terms are in the fluxes")
+        raise NotImplementedError("This source term should not be used. the source terms are in the fluxes")
         x_pos = self.get_xi()
         pres = self.get_P()
         area = self.get_area()

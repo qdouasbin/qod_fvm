@@ -1,8 +1,6 @@
 import numpy as np
 
 FR_TYPE = 'RUSANOV'
-
-
 # FR_TYPE = 'LAX_FRIEDRICH'
 
 
